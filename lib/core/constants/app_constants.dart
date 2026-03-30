@@ -8,6 +8,11 @@ class AppConstants {
 
   // ── Firestore collection names ──────────────────────────────────────────────
   static const String usersCollection = 'users';
+  static const String recipesCollection = 'recipes';
+  static const String favoritesCollection = 'favorites';
+
+  // ── Firestore sub-collection paths ─────────────────────────────────────────
+  static const String userRecipesSubcollection = 'recipes';
 
   // ── Firestore field names ───────────────────────────────────────────────────
   static const String fieldUid = 'uid';

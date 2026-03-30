@@ -6,6 +6,8 @@ import '../models/user_recipe_model.dart';
 import '../models/recipe_model.dart';
 import '../services/image_storage_service.dart';
 import '../services/firebase_storage_service.dart';
+import '../core/services/recipe_service.dart';
+import '../core/services/user_service.dart';
 import '../repositories/recipe_repository.dart';
 import '../repositories/local_recipe_repository.dart';
 
@@ -22,12 +24,20 @@ import '../repositories/local_recipe_repository.dart';
 class AddRecipeProvider extends ChangeNotifier {
   final RecipeRepository _repository;
   final FirebaseStorageService? _storageService;
+  final RecipeService? _recipeService;
+  final UserService? _userService;
+  final String? _currentUserId;
 
   AddRecipeProvider({
     RecipeRepository? repository,
     FirebaseStorageService? storageService,
+    RecipeService? recipeService,
+    String? currentUserId,
   })  : _repository = repository ?? LocalRecipeRepository(),
-        _storageService = storageService;
+        _storageService = storageService,
+        _recipeService = recipeService,
+        _userService = UserService(),
+        _currentUserId = currentUserId;
 
   // Recipe metadata
   String _recipeTitle = '';
@@ -503,19 +513,43 @@ class AddRecipeProvider extends ChangeNotifier {
         totalCalories: totalCalories,
       );
 
-      // Save to repository (Firestore or local)
+      // Save to user's repository (Firestore or local)
       final success = await _repository.saveRecipe(recipe);
-      if (success) {
-        debugPrint('=== YENİ TARİF KAYDEDİLDİ ===');
-        debugPrint('ID: ${recipe.id}');
-        debugPrint('Başlık: ${recipe.title}');
-        debugPrint('Toplam Kalori: ${recipe.totalCalories} kcal');
-        debugPrint('Malzeme Sayısı: ${recipe.ingredients.length}');
-        debugPrint('========================');
-      } else {
+      if (!success) {
         debugPrint('⚠️ Repository kaydetme başarısız');
         _printRecipeDetails(recipe);
+        _isSubmitting = false;
+        notifyListeners();
+        return false;
       }
+
+      // Publish to global recipes collection (if logged in)
+      if (_recipeService != null && _currentUserId != null) {
+        try {
+          // Get current user info for author details
+          final userProfile = await _userService?.getUserProfile(_currentUserId!);
+          
+          await _recipeService!.publishRecipe(
+            recipeId: recipeId,
+            recipe: recipe,
+            authorId: _currentUserId!,
+            authorName: userProfile?.name ?? 'Misafir',
+            authorPhotoUrl: userProfile?.photoUrl,
+            authorUsername: userProfile?.username,
+          );
+          debugPrint('✅ Recipe published to global collection');
+        } catch (e) {
+          debugPrint('⚠️ Failed to publish to global collection: $e');
+          // Non-fatal — recipe is saved in user's collection
+        }
+      }
+
+      debugPrint('=== YENİ TARİF KAYDEDİLDİ ===');
+      debugPrint('ID: ${recipe.id}');
+      debugPrint('Başlık: ${recipe.title}');
+      debugPrint('Toplam Kalori: ${recipe.totalCalories} kcal');
+      debugPrint('Malzeme Sayısı: ${recipe.ingredients.length}');
+      debugPrint('========================');
 
       // Success - reset form
       _resetForm();

@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'core/config/firebase_options.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
+import 'core/services/recipe_service.dart';
+import 'core/services/like_service.dart';
 import 'repositories/local_recipe_repository.dart';
 import 'repositories/recipe_repository.dart';
 import 'repositories/firestore_recipe_repository.dart';
@@ -34,7 +36,17 @@ class YioRecipeApp extends StatelessWidget {
           create: (_) => FirebaseAuth.instance,
         ),
 
-        // Recipe repository — switches between local and Firestore based on auth state
+        // Global recipe service — reads/writes the top-level `recipes/` collection
+        Provider<RecipeService>(
+          create: (_) => RecipeService(),
+        ),
+
+        // Like service — manages user favorites
+        Provider<LikeService>(
+          create: (_) => LikeService(),
+        ),
+
+        // Recipe repository — user-scoped, switches local ↔ Firestore based on auth
         ProxyProvider<FirebaseAuth, RecipeRepository>(
           update: (_, auth, previous) {
             final user = auth.currentUser;
@@ -45,9 +57,10 @@ class YioRecipeApp extends StatelessWidget {
           },
         ),
 
-        // Add recipe provider — inject Firebase Storage when logged in
-        ProxyProvider2<FirebaseAuth, RecipeRepository, AddRecipeProvider>(
-          update: (_, auth, recipeRepository, previous) {
+        // Add recipe provider — inject Firebase Storage + RecipeService when logged in
+        ProxyProvider3<FirebaseAuth, RecipeRepository, RecipeService,
+            AddRecipeProvider>(
+          update: (_, auth, recipeRepository, recipeService, previous) {
             final user = auth.currentUser;
             final storageService = user != null
                 ? FirebaseStorageService(userId: user.uid)
@@ -55,6 +68,8 @@ class YioRecipeApp extends StatelessWidget {
             return AddRecipeProvider(
               repository: recipeRepository,
               storageService: storageService,
+              recipeService: recipeService,
+              currentUserId: user?.uid,
             );
           },
         ),
