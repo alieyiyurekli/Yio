@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "171185283086",
+    "project_id": "yio-325fe",
+    "storage_bucket": "yio-325fe.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:171185283086:android:96b51eaeca2e37ac67dc5f",
+        "android_client_info": {
+          "package_name": "com.example.yio_recipe_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCcZHKMoWSOKGe5c-CvPk7Rk6jz677ZSSE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
