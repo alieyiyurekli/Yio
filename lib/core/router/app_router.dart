@@ -1,3 +1,7 @@
+// ============================================================================
+// LEGACY: Bu dosya artık kullanılmıyor.
+// Yeni routing sistemi için go_router_config.dart dosyasına bakın.
+// ============================================================================
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../constants/app_constants.dart';

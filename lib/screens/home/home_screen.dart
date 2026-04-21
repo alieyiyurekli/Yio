@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/services/recipe_service.dart';
 import '../../core/services/like_service.dart';
 import '../../widgets/recipe_card.dart';
@@ -22,7 +23,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedTab = 0;
   final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
+  final String _searchQuery = '';
 
   @override
   void dispose() {
@@ -37,7 +38,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final currentUser = context.watch<FirebaseAuth>().currentUser;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -63,6 +63,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildAppBar() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -71,15 +74,15 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: AppColors.primary,
+              color: theme.colorScheme.primary,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Text(
+            child: Text(
               'YIO',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textWhite,
+                color: theme.colorScheme.onPrimary,
                 letterSpacing: 2,
               ),
             ),
@@ -88,26 +91,28 @@ class _HomeScreenState extends State<HomeScreen> {
           // Notification Icon
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.notifications_outlined),
+            icon: Icon(Icons.notifications_outlined, color: theme.iconTheme.color),
           ),
           // Message Icon
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.message_outlined),
+            icon: Icon(Icons.message_outlined, color: theme.iconTheme.color),
           ),
           // AI Assistant Icon
           Container(
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: isDark
+                  ? const Color(0xFF2A2A2A)
+                  : theme.colorScheme.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: IconButton(
               onPressed: () {
-                Navigator.pushNamed(context, '/aiAssistant');
+                context.push('/ai-assistant');
               },
-              icon: const Icon(
+              icon: Icon(
                 Icons.smart_toy,
-                color: AppColors.primary,
+                color: theme.colorScheme.primary,
               ),
             ),
           ),
@@ -141,6 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTabs() {
+    final theme = Theme.of(context);
     final tabs = ['Trend', 'Takip', 'Yeni'];
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -166,8 +172,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           ? FontWeight.bold
                           : FontWeight.normal,
                       color: _selectedTab == index
-                          ? AppColors.primary
-                          : AppColors.textLight,
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -176,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       height: 3,
                       width: 30,
                       decoration: BoxDecoration(
-                        color: AppColors.primary,
+                        color: theme.colorScheme.primary,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -213,17 +219,17 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.all(32),
               child: Column(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.error_outline,
                     size: 48,
-                    color: AppColors.error,
+                    color: Theme.of(context).colorScheme.error,
                   ),
                   const SizedBox(height: 16),
                   Text(
                     'Tarifler yüklenemedi',
                     style: TextStyle(
                       fontSize: 16,
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -243,22 +249,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   Icon(
                     Icons.restaurant_menu,
                     size: 64,
-                    color: AppColors.textLight,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Henüz tarif yok',
                     style: TextStyle(
                       fontSize: 16,
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'İlk tarifi sen ekle!',
                     style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textLight,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -310,17 +316,17 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.all(32),
               child: Column(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.search_off,
                     size: 48,
-                    color: AppColors.textLight,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(height: 16),
                   Text(
                     '"$_searchQuery" için sonuç bulunamadı',
                     style: TextStyle(
                       fontSize: 14,
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -362,13 +368,10 @@ class _HomeScreenState extends State<HomeScreen> {
       return RecipeCard(
         recipe: recipe,
         onTap: () {
-          Navigator.pushNamed(
-            context,
-            '/recipeDetail',
-            arguments: recipe,
-          );
+          context.push('/recipe-detail/$recipeId');
         },
-        onLike: null,
+        onLike: () {},
+        onSave: () {},
       );
     }
 
@@ -383,12 +386,10 @@ class _HomeScreenState extends State<HomeScreen> {
             isFavorite: isLiked,
             likes: (recipeData['likesCount'] as num?)?.toInt() ?? recipe.likes,
           ),
+          isLiked: isLiked,
+          isSaved: false,
           onTap: () {
-            Navigator.pushNamed(
-              context,
-              '/recipeDetail',
-              arguments: recipe,
-            );
+            context.push('/recipe-detail/$recipeId');
           },
           onLike: () async {
             try {
@@ -404,6 +405,7 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             }
           },
+          onSave: () {},
         );
       },
     );
@@ -413,6 +415,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Recipe _mapToRecipe(Map<String, dynamic> data) {
     // Create chef from author info
     final chef = Chef(
+      id: data['authorId'] as String? ?? '',
       name: data['authorName'] as String? ?? 'Misafir Şef',
       avatar: data['authorPhotoUrl'] as String? ??
           'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
@@ -427,14 +430,15 @@ class _HomeScreenState extends State<HomeScreen> {
             'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=800');
 
     // Convert ingredients
-    final ingredients = <String>[];
+    final ingredients = <Ingredient>[];
     if (data['ingredients'] != null) {
       for (var ing in data['ingredients'] as List) {
         if (ing is Map<String, dynamic>) {
-          final name = ing['name'] as String? ?? '';
-          final amount = ing['amount']?.toString() ?? '';
-          final unit = ing['unit'] as String? ?? '';
-          ingredients.add('$amount $unit $name'.trim());
+          ingredients.add(Ingredient(
+            name: ing['name'] as String? ?? '',
+            amount: ing['amount']?.toString(),
+            unit: ing['unit'] as String?,
+          ));
         }
       }
     }
@@ -446,11 +450,16 @@ class _HomeScreenState extends State<HomeScreen> {
       category: data['category'] as String? ?? 'Ana Yemek',
       description: data['instructions'] as String? ?? '',
       calories: (data['totalCalories'] as num?)?.toInt() ?? 0,
-      time: data['cookingTime'] as int? ?? 30,
+      cookingTime: data['cookingTime'] as int? ?? 30,
       difficulty: _parseDifficulty(data['difficulty'] as String?),
       chef: chef,
       ingredients: ingredients,
-      steps: [data['instructions'] as String? ?? ''],
+      steps: [
+        RecipeStep(
+          stepNumber: 1,
+          description: data['instructions'] as String? ?? '',
+        ),
+      ],
       likes: (data['likesCount'] as num?)?.toInt() ?? 0,
       comments: 0,
       isFavorite: false,
@@ -469,4 +478,5 @@ class _HomeScreenState extends State<HomeScreen> {
         return Difficulty.medium;
     }
   }
+
 }

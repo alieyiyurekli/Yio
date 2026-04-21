@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../../models/user_recipe_model.dart';
 import '../constants/app_constants.dart';
+import '../../services/firebase_storage_service.dart';
 
 /// Global Recipe Service
 ///
@@ -29,6 +31,76 @@ class RecipeService {
       _recipesRef.doc(id);
 
   // ── Create ────────────────────────────────────────────────────────────────────
+
+  /// Create a new recipe with image upload and Firestore save.
+  ///
+  /// This is the main method for creating recipes. It:
+  /// 1. Uploads image to Firebase Storage
+  /// 2. Saves to global `recipes/` collection
+  /// 3. Returns the recipe ID
+  ///
+  /// All fields are required except imageFile (can be null).
+  Future<String?> createRecipe({
+    required String userId,
+    required String username,
+    required String name,
+    required String title,
+    required String description,
+    required List<String> ingredients,
+    required List<String> steps,
+    required int cookingTime,
+    required int calories,
+    required String category,
+    required String difficulty,
+    File? imageFile,
+    FirebaseStorageService? storageService,
+  }) async {
+    try {
+      // Generate recipe ID
+      final recipeId = DateTime.now().millisecondsSinceEpoch.toString();
+
+      // Upload image if provided
+      String? imageUrl;
+      if (imageFile != null && storageService != null) {
+        imageUrl = await storageService.uploadImage(
+          imageFile: imageFile,
+          recipeId: recipeId,
+        );
+        debugPrint('[RecipeService] Image uploaded: $imageUrl');
+      }
+
+      // Create recipe data
+      final recipeData = {
+        'id': recipeId,
+        'userId': userId,
+        'username': username,
+        'title': title,
+        'description': description,
+        'ingredients': ingredients,
+        'steps': steps,
+        'cookingTime': cookingTime,
+        'calories': calories,
+        'category': category,
+        'difficulty': difficulty,
+        'imageUrl': imageUrl,
+        'likesCount': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+        // Author info
+        'authorId': userId,
+        'authorName': name,
+        'authorUsername': username,
+      };
+
+      // Save to Firestore
+      await _recipeDoc(recipeId).set(recipeData);
+      debugPrint('[RecipeService] Recipe created: $recipeId');
+      
+      return recipeId;
+    } catch (e) {
+      debugPrint('[RecipeService] Failed to create recipe: $e');
+      rethrow;
+    }
+  }
 
   /// Publish a recipe to the global recipes collection.
   ///
@@ -84,7 +156,7 @@ class RecipeService {
         .limit(limit)
         .snapshots()
         .map((snapshot) => snapshot.docs
-            .map((doc) => {...doc.data()!, 'id': doc.id})
+            .map((doc) => {...doc.data(), 'id': doc.id})
             .toList());
   }
 
@@ -92,10 +164,11 @@ class RecipeService {
   Stream<List<Map<String, dynamic>>> recipesByAuthorStream(String authorId) {
     return _recipesRef
         .where('authorId', isEqualTo: authorId)
-        .orderBy('createdAt', descending: true)
+        // Note: orderBy('createdAt') removed to avoid Firestore index requirement
+        // Recipes will be returned in arbitrary order
         .snapshots()
         .map((snapshot) => snapshot.docs
-            .map((doc) => {...doc.data()!, 'id': doc.id})
+            .map((doc) => {...doc.data(), 'id': doc.id})
             .toList());
   }
 
@@ -113,7 +186,7 @@ class RecipeService {
         .limit(20)
         .snapshots()
         .map((snapshot) => snapshot.docs
-            .map((doc) => {...doc.data()!, 'id': doc.id})
+            .map((doc) => {...doc.data(), 'id': doc.id})
             .toList());
   }
 
@@ -127,6 +200,14 @@ class RecipeService {
       debugPrint('[RecipeService] Failed to get recipe $id: $e');
       return null;
     }
+  }
+
+  /// Stream of a single recipe by ID.
+  Stream<Map<String, dynamic>?> getRecipeStream(String id) {
+    return _recipeDoc(id).snapshots().map((doc) {
+      if (!doc.exists || doc.data() == null) return null;
+      return {...doc.data()!, 'id': doc.id};
+    });
   }
 
   // ── Update ───────────────────────────────────────────────────────────────────
@@ -153,6 +234,7 @@ class RecipeService {
       debugPrint('[RecipeService] Failed to update recipe: $e');
       rethrow;
     }
+  
   }
 
   // ── Delete ───────────────────────────────────────────────────────────────────

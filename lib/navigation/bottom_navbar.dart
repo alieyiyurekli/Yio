@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../core/constants/colors.dart';
+import 'package:go_router/go_router.dart';
 
+/// Premium Bottom Navigation Bar with dark mode support
+/// Instagram/Spotify level design
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
@@ -13,14 +15,19 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.cardBackground,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF121212) : theme.colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadow,
-            blurRadius: 12,
-            offset: Offset(0, -4),
+            color: isDark 
+                ? Colors.black.withValues(alpha: 0.3)
+                : Colors.black.withValues(alpha: 0.05),
+            blurRadius: isDark ? 8 : 12,
+            offset: const Offset(0, -4),
           ),
         ],
       ),
@@ -46,7 +53,7 @@ class BottomNavBar extends StatelessWidget {
               ),
               _CreateButton(
                 onTap: () {
-                  Navigator.pushNamed(context, '/add-recipe');
+                  context.push('/add-recipe');
                 },
               ),
               _NavBarItem(
@@ -88,6 +95,9 @@ class _NavBarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -98,7 +108,9 @@ class _NavBarItem extends StatelessWidget {
           children: [
             Icon(
               isActive ? activeIcon : icon,
-              color: isActive ? AppColors.primary : AppColors.textLight,
+              color: isActive 
+                  ? (isDark ? const Color(0xFFFF8A50) : theme.colorScheme.primary)
+                  : (isDark ? const Color(0xFF888888) : theme.colorScheme.onSurfaceVariant),
               size: 26,
             ),
             const SizedBox(height: 4),
@@ -106,7 +118,9 @@ class _NavBarItem extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 11,
-                color: isActive ? AppColors.primary : AppColors.textLight,
+                color: isActive 
+                    ? (isDark ? const Color(0xFFFF8A50) : theme.colorScheme.primary)
+                    : (isDark ? const Color(0xFF888888) : theme.colorScheme.onSurfaceVariant),
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
@@ -124,31 +138,47 @@ class _CreateButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              AppColors.primary,
-              AppColors.primaryLight,
-            ],
+          gradient: LinearGradient(
+            colors: isDark
+                ? [
+                    const Color(0xFFFF7A45),
+                    const Color(0xFFFF8A50),
+                  ]
+                : [
+                    theme.colorScheme.primary,
+                    const Color(0xFFFF9B6E),
+                  ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: isDark
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFFF7A45).withValues(alpha: 0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
         ),
-        child: const Icon(
+        child: Icon(
           Icons.add,
-          color: AppColors.textWhite,
+          color: theme.colorScheme.onPrimary,
           size: 28,
         ),
       ),

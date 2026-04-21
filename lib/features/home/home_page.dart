@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/constants/colors.dart';
 import '../../core/services/recipe_service.dart';
 import '../../core/services/like_service.dart';
@@ -28,22 +29,34 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> _screens = [
-      const HomeScreen(),
-      const SearchTab(),
-      const LikesTab(),
-      const ProfileScreen(),
-    ];
-
+    debugPrint('[HomePage] build called, currentIndex: $_currentIndex');
+    
+    // Build screens on demand to avoid ProfileScreen crash
+    Widget buildCurrentScreen() {
+      switch (_currentIndex) {
+        case 0:
+          return const HomeScreen();
+        case 1:
+          return const SearchTab();
+        case 2:
+          return const LikesTab();
+        case 3:
+          return const ProfileScreen();
+        default:
+          return const HomeScreen();
+      }
+    }
+    
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: buildCurrentScreen(),
       bottomNavigationBar: BottomNavBar(
         currentIndex: _currentIndex,
         onTap: (index) {
-          setState(() => _currentIndex = index);
+          debugPrint('[HomePage] BottomNavBar tapped: $index');
+          setState(() {
+            _currentIndex = index;
+          });
+          debugPrint('[HomePage] currentIndex updated to: $_currentIndex');
         },
       ),
     );
@@ -53,7 +66,7 @@ class _HomePageState extends State<HomePage> {
 // ── Search Tab ─────────────────────────────────────────────────────────────────
 
 class SearchTab extends StatefulWidget {
-  const SearchTab();
+  const SearchTab({super.key});
 
   @override
   State<SearchTab> createState() => _SearchTabState();
@@ -227,13 +240,10 @@ class _SearchTabState extends State<SearchTab> {
       return RecipeCard(
         recipe: recipe,
         onTap: () {
-          Navigator.pushNamed(
-            context,
-            '/recipeDetail',
-            arguments: recipe,
-          );
+          context.push('/recipe-detail/$recipeId');
         },
-        onLike: null,
+        onLike: () {},
+        onSave: () {},
       );
     }
 
@@ -247,12 +257,10 @@ class _SearchTabState extends State<SearchTab> {
             isFavorite: isLiked,
             likes: (recipeData['likesCount'] as num?)?.toInt() ?? recipe.likes,
           ),
+          isLiked: isLiked,
+          isSaved: false,
           onTap: () {
-            Navigator.pushNamed(
-              context,
-              '/recipeDetail',
-              arguments: recipe,
-            );
+            context.push('/recipe-detail/$recipeId');
           },
           onLike: () async {
             try {
@@ -268,6 +276,7 @@ class _SearchTabState extends State<SearchTab> {
               }
             }
           },
+          onSave: () {},
         );
       },
     );
@@ -275,6 +284,7 @@ class _SearchTabState extends State<SearchTab> {
 
   Recipe _mapToRecipe(Map<String, dynamic> data) {
     final chef = Chef(
+      id: data['authorId'] as String? ?? '',
       name: data['authorName'] as String? ?? 'Misafir Şef',
       avatar: data['authorPhotoUrl'] as String? ??
           'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
@@ -287,14 +297,15 @@ class _SearchTabState extends State<SearchTab> {
         : (data['imagePath'] as String? ??
             'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=800');
 
-    final ingredients = <String>[];
+    final ingredients = <Ingredient>[];
     if (data['ingredients'] != null) {
       for (var ing in data['ingredients'] as List) {
         if (ing is Map<String, dynamic>) {
-          final name = ing['name'] as String? ?? '';
-          final amount = ing['amount']?.toString() ?? '';
-          final unit = ing['unit'] as String? ?? '';
-          ingredients.add('$amount $unit $name'.trim());
+          ingredients.add(Ingredient(
+            name: ing['name'] as String? ?? '',
+            amount: ing['amount']?.toString(),
+            unit: ing['unit'] as String?,
+          ));
         }
       }
     }
@@ -306,11 +317,16 @@ class _SearchTabState extends State<SearchTab> {
       category: data['category'] as String? ?? 'Ana Yemek',
       description: data['instructions'] as String? ?? '',
       calories: (data['totalCalories'] as num?)?.toInt() ?? 0,
-      time: data['cookingTime'] as int? ?? 30,
+      cookingTime: data['cookingTime'] as int? ?? 30,
       difficulty: _parseDifficulty(data['difficulty'] as String?),
       chef: chef,
       ingredients: ingredients,
-      steps: [data['instructions'] as String? ?? ''],
+      steps: [
+        RecipeStep(
+          stepNumber: 1,
+          description: data['instructions'] as String? ?? '',
+        ),
+      ],
       likes: (data['likesCount'] as num?)?.toInt() ?? 0,
       comments: 0,
       isFavorite: false,
@@ -334,7 +350,7 @@ class _SearchTabState extends State<SearchTab> {
 // ── Likes Tab ──────────────────────────────────────────────────────────────────
 
 class LikesTab extends StatelessWidget {
-  const LikesTab();
+  const LikesTab({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -358,16 +374,16 @@ class LikesTab extends StatelessWidget {
             }
 
             if (snapshot.hasError) {
-              return Center(
+              return const Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.error_outline,
                       size: 48,
                       color: AppColors.error,
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16),
                     Text(
                       'Beğendikleriniz yüklenemedi',
                       style: TextStyle(
@@ -423,12 +439,10 @@ class LikesTab extends StatelessWidget {
 
                 return RecipeCard(
                   recipe: recipe.copyWith(isFavorite: true),
+                  isLiked: true,
+                  isSaved: true,
                   onTap: () {
-                    Navigator.pushNamed(
-                      context,
-                      '/recipeDetail',
-                      arguments: recipe,
-                    );
+                    context.push('/recipe-detail/${recipeData['id'] as String}');
                   },
                   onLike: () async {
                     try {
@@ -444,6 +458,7 @@ class LikesTab extends StatelessWidget {
                       }
                     }
                   },
+                  onSave: () {},
                 );
               },
             );
@@ -455,6 +470,7 @@ class LikesTab extends StatelessWidget {
 
   Recipe _mapToRecipe(Map<String, dynamic> data) {
     final chef = Chef(
+      id: data['authorId'] as String? ?? '',
       name: data['authorName'] as String? ?? 'Misafir Şef',
       avatar: data['authorPhotoUrl'] as String? ??
           'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
@@ -467,14 +483,15 @@ class LikesTab extends StatelessWidget {
         : (data['imagePath'] as String? ??
             'https://images.unsplash.com/photo-1495521821757-a1efb6729352?w=800');
 
-    final ingredients = <String>[];
+    final ingredients = <Ingredient>[];
     if (data['ingredients'] != null) {
       for (var ing in data['ingredients'] as List) {
         if (ing is Map<String, dynamic>) {
-          final name = ing['name'] as String? ?? '';
-          final amount = ing['amount']?.toString() ?? '';
-          final unit = ing['unit'] as String? ?? '';
-          ingredients.add('$amount $unit $name'.trim());
+          ingredients.add(Ingredient(
+            name: ing['name'] as String? ?? '',
+            amount: ing['amount']?.toString(),
+            unit: ing['unit'] as String?,
+          ));
         }
       }
     }
@@ -486,11 +503,16 @@ class LikesTab extends StatelessWidget {
       category: data['category'] as String? ?? 'Ana Yemek',
       description: data['instructions'] as String? ?? '',
       calories: (data['totalCalories'] as num?)?.toInt() ?? 0,
-      time: data['cookingTime'] as int? ?? 30,
+      cookingTime: data['cookingTime'] as int? ?? 30,
       difficulty: _parseDifficulty(data['difficulty'] as String?),
       chef: chef,
       ingredients: ingredients,
-      steps: [data['instructions'] as String? ?? ''],
+      steps: [
+        RecipeStep(
+          stepNumber: 1,
+          description: data['instructions'] as String? ?? '',
+        ),
+      ],
       likes: (data['likesCount'] as num?)?.toInt() ?? 0,
       comments: 0,
       isFavorite: false,

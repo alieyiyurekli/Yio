@@ -132,15 +132,20 @@ class UserRecipeModel {
   /// Convert to Recipe model for use with RecipeCard widget
   Recipe toRecipe() {
     // Create a default chef for user recipes
-    final chef = Chef(
+    const chef = Chef(
+      id: '',
       name: 'Sen',
       avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
       role: 'Home Cook',
     );
 
-    // Convert ingredients to string list
-    final ingredientStrings = ingredients.map((i) {
-      return '${i.amount} ${i.unit} ${i.name}';
+    // Convert IngredientModel to Ingredient
+    final convertedIngredients = ingredients.map((ing) {
+      return Ingredient(
+        name: ing.name,
+        amount: ing.amount.toString(),
+        unit: ing.unit,
+      );
     }).toList();
 
     // Prefer first image from imagePaths, fallback to imagePath, then placeholder
@@ -157,11 +162,16 @@ class UserRecipeModel {
           ? '${instructions.substring(0, 100)}...'
           : instructions,
       calories: totalCalories.toInt(),
-      time: cookingTime,
+      cookingTime: cookingTime,
       difficulty: difficulty,
       chef: chef,
-      ingredients: ingredientStrings,
-      steps: [instructions],
+      ingredients: convertedIngredients,
+      steps: [
+        RecipeStep(
+          stepNumber: 1,
+          description: instructions,
+        ),
+      ],
       likes: 0,
       comments: 0,
       isFavorite: false,

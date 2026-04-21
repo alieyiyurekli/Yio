@@ -916,9 +916,9 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             'En az ${AppConstants.interestsMinCount}, en fazla ${AppConstants.interestsMaxCount} ilgi alanı seç.',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               color: AppColors.textSecondary,
             ),

@@ -318,7 +318,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                         const SizedBox(height: 16),
                         ...recipe.ingredients.map((ingredient) {
                           return IngredientItem(
-                            name: ingredient,
+                            name: ingredient.displayText,
                             onChanged: (isChecked) {},
                           );
                         }),
@@ -351,7 +351,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                   ),
                                   child: Center(
                                     child: Text(
-                                      '${index + 1}',
+                                      '${step.stepNumber}',
                                       style: const TextStyle(
                                         color: AppColors.textWhite,
                                         fontSize: 14,
@@ -363,7 +363,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
-                                    step,
+                                    step.description,
                                     style: const TextStyle(
                                       fontSize: 14,
                                       color: AppColors.textSecondary,

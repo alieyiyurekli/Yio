@@ -63,9 +63,9 @@ class AppUser {
     print('[AppUser.fromMap] onboardingRaw: $onboardingRaw (${onboardingRaw.runtimeType}), parsed: $onboardingCompleted');
 
     return AppUser(
-      uid: map[AppConstants.fieldUid] as String,
-      email: map[AppConstants.fieldEmail] as String,
-      name: map[AppConstants.fieldName] as String,
+      uid: map[AppConstants.fieldUid] as String? ?? '',
+      email: map[AppConstants.fieldEmail] as String? ?? '',
+      name: map[AppConstants.fieldName] as String? ?? '',
       username: map[AppConstants.fieldUsername] as String?,
       photoUrl: map[AppConstants.fieldPhotoUrl] as String?,
       bio: map[AppConstants.fieldBio] as String?,

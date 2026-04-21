@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../core/constants/colors.dart';
 
+/// Premium Story Avatar with dark mode support
+/// Instagram-style story bubbles with soft borders
 class StoryAvatar extends StatelessWidget {
   final String name;
   final String avatarUrl;
@@ -17,6 +18,9 @@ class StoryAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -33,17 +37,33 @@ class StoryAvatar extends StatelessWidget {
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
                       colors: isYourStory
-                          ? [AppColors.textLight, AppColors.textLight]
-                          : [AppColors.primary, AppColors.primaryLight],
+                          ? [
+                              isDark 
+                                  ? const Color(0xFF2A2A2A)
+                                  : const Color(0xFFE0E0E0),
+                              isDark 
+                                  ? const Color(0xFF2A2A2A)
+                                  : const Color(0xFFE0E0E0),
+                            ]
+                          : [
+                              isDark 
+                                  ? const Color(0xFFFF8A50)
+                                  : theme.colorScheme.primary,
+                              isDark 
+                                  ? const Color(0xFFFF9B6E)
+                                  : const Color(0xFFFF9B6E),
+                            ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                   ),
                   padding: const EdgeInsets.all(3),
                   child: Container(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.cardBackground,
+                      color: isDark 
+                          ? const Color(0xFF2A2A2A)
+                          : theme.colorScheme.surface,
                     ),
                     padding: const EdgeInsets.all(3),
                     child: CircleAvatar(
@@ -52,9 +72,11 @@ class StoryAvatar extends StatelessWidget {
                       child: Image.network(
                         avatarUrl,
                         errorBuilder: (context, error, stackTrace) {
-                          return const Icon(
+                          return Icon(
                             Icons.person,
-                            color: AppColors.textLight,
+                            color: isDark 
+                                ? const Color(0xFFE0E0E0)
+                                : theme.colorScheme.onSurfaceVariant,
                           );
                         },
                       ),
@@ -69,17 +91,21 @@ class StoryAvatar extends StatelessWidget {
                       width: 22,
                       height: 22,
                       decoration: BoxDecoration(
-                        color: AppColors.primary,
+                        color: isDark 
+                            ? const Color(0xFFFF8A50)
+                            : theme.colorScheme.primary,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: AppColors.cardBackground,
+                          color: isDark 
+                              ? const Color(0xFF121212)
+                              : theme.colorScheme.surface,
                           width: 2,
                         ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.add,
                         size: 14,
-                        color: AppColors.textWhite,
+                        color: theme.colorScheme.onPrimary,
                       ),
                     ),
                   ),
@@ -94,10 +120,12 @@ class StoryAvatar extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 10,
                   height: 1.2,
-                  color: AppColors.textPrimary,
+                  color: isDark 
+                      ? const Color(0xFFE0E0E0)
+                      : theme.colorScheme.onSurface,
                   fontWeight: FontWeight.w500,
                 ),
               ),
