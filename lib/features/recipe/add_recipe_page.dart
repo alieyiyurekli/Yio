@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../core/constants/colors.dart';
+import '../../core/constants/app_colors.dart';
 import '../../core/services/recipe_service.dart';
 import '../../core/services/user_service.dart';
 import '../../services/firebase_storage_service.dart';
@@ -249,15 +249,17 @@ class _AddRecipePageState extends State<AddRecipePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.background(Theme.of(context).brightness),
       appBar: AppBar(
         title: const Text(
           'Tarif Ekle',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: AppColors.surface(Theme.of(context).brightness),
+        foregroundColor: AppColors.textPrimary(Theme.of(context).brightness),
         elevation: 0,
         actions: [
           if (_isLoading)
@@ -396,27 +398,29 @@ class _AddRecipePageState extends State<AddRecipePage> {
   // ── Widgets ──────────────────────────────────────────────────────────────────
 
   Widget _buildSectionTitle(String title) {
+    final brightness = Theme.of(context).brightness;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
+          color: AppColors.textPrimary(brightness),
         ),
       ),
     );
   }
 
   Widget _buildImagePicker() {
+    final brightness = Theme.of(context).brightness;
     return GestureDetector(
       onTap: _pickImage,
       child: Container(
         height: 200,
         width: double.infinity,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.cardBackground(brightness),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: _selectedImage == null
@@ -474,11 +478,11 @@ class _AddRecipePageState extends State<AddRecipePage> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Galeriden bir fotoğraf seçin',
                     style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: AppColors.textSecondary(Theme.of(context).brightness),
                     ),
                   ),
                 ],
@@ -493,11 +497,12 @@ class _AddRecipePageState extends State<AddRecipePage> {
     int maxLines = 1,
     int? maxLength,
   }) {
+    final brightness = Theme.of(context).brightness;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardBackground(brightness),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.border(brightness)),
       ),
       child: TextField(
         controller: controller,
@@ -505,14 +510,15 @@ class _AddRecipePageState extends State<AddRecipePage> {
         maxLength: maxLength,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(color: AppColors.textLight),
+          hintStyle: TextStyle(color: AppColors.textTertiary(brightness)),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.all(14),
-          counterStyle: const TextStyle(
+          counterStyle: TextStyle(
             fontSize: 11,
-            color: AppColors.textLight,
+            color: AppColors.textTertiary(brightness),
           ),
         ),
+        style: TextStyle(color: AppColors.textPrimary(brightness)),
       ),
     );
   }
@@ -522,11 +528,12 @@ class _AddRecipePageState extends State<AddRecipePage> {
     required String hint,
     required String suffix,
   }) {
+    final brightness = Theme.of(context).brightness;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardBackground(brightness),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.border(brightness)),
       ),
       child: TextField(
         controller: controller,
@@ -534,20 +541,22 @@ class _AddRecipePageState extends State<AddRecipePage> {
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(color: AppColors.textLight),
+          hintStyle: TextStyle(color: AppColors.textTertiary(brightness)),
           suffixText: suffix,
-          suffixStyle: const TextStyle(
-            color: AppColors.textSecondary,
+          suffixStyle: TextStyle(
+            color: AppColors.textSecondary(brightness),
             fontSize: 12,
           ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.all(14),
         ),
+        style: TextStyle(color: AppColors.textPrimary(brightness)),
       ),
     );
   }
 
   List<Widget> _buildIngredientsList() {
+    final brightness = Theme.of(context).brightness;
     return List.generate(
       _ingredientControllers.length,
       (i) => Padding(
@@ -557,21 +566,22 @@ class _AddRecipePageState extends State<AddRecipePage> {
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.cardBackground(brightness),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(color: AppColors.border(brightness)),
                 ),
                 child: TextField(
                   controller: _ingredientControllers[i],
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'örn. 2 su bardağı un',
-                    hintStyle: TextStyle(color: AppColors.textLight),
+                    hintStyle: TextStyle(color: AppColors.textTertiary(brightness)),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
+                    contentPadding: const EdgeInsets.symmetric(
                       horizontal: 14,
                       vertical: 12,
                     ),
                   ),
+                  style: TextStyle(color: AppColors.textPrimary(brightness)),
                 ),
               ),
             ),
@@ -588,6 +598,7 @@ class _AddRecipePageState extends State<AddRecipePage> {
   }
 
   List<Widget> _buildStepsList() {
+    final brightness = Theme.of(context).brightness;
     return List.generate(
       _stepControllers.length,
       (i) => Padding(
@@ -617,19 +628,20 @@ class _AddRecipePageState extends State<AddRecipePage> {
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.cardBackground(brightness),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(color: AppColors.border(brightness)),
                 ),
                 child: TextField(
                   controller: _stepControllers[i],
                   maxLines: 3,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Bu adımda ne yapılacak?',
-                    hintStyle: TextStyle(color: AppColors.textLight),
+                    hintStyle: TextStyle(color: AppColors.textTertiary(brightness)),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.all(12),
+                    contentPadding: const EdgeInsets.all(12),
                   ),
+                  style: TextStyle(color: AppColors.textPrimary(brightness)),
                 ),
               ),
             ),
@@ -671,12 +683,13 @@ class _AddRecipePageState extends State<AddRecipePage> {
     required String Function(T) labelBuilder,
     required void Function(T?) onChanged,
   }) {
+    final brightness = Theme.of(context).brightness;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardBackground(brightness),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.border(brightness)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<T>(
@@ -688,7 +701,10 @@ class _AddRecipePageState extends State<AddRecipePage> {
                   value: item,
                   child: Text(
                     labelBuilder(item),
-                    style: const TextStyle(fontSize: 14),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textPrimary(brightness),
+                    ),
                   ),
                 ),
               )

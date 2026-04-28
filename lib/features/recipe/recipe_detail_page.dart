@@ -4,7 +4,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/services/recipe_service.dart';
 import '../../core/services/like_service.dart';
-import '../../core/constants/colors.dart';
+import '../../core/constants/app_colors.dart';
 import '../../models/recipe_model.dart';
 import '../../widgets/ingredient_item.dart';
 
@@ -51,7 +51,7 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Yemek yapma modu kapatıldı.'),
-            backgroundColor: AppColors.textSecondary,
+            backgroundColor: AppColors.primary,
             duration: Duration(seconds: 2),
           ),
         );
@@ -61,12 +61,13 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     final recipeService = context.read<RecipeService>();
     final likeService = context.read<LikeService>();
     final firebaseAuth = context.watch<FirebaseAuth>();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.background(brightness),
       body: StreamBuilder<Map<String, dynamic>?>(
         stream: recipeService.getRecipeStream(widget.recipeId),
         builder: (context, snapshot) {
@@ -96,22 +97,22 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                   SliverAppBar(
                     expandedHeight: 300,
                     pinned: true,
-                    backgroundColor: AppColors.cardBackground,
+                    backgroundColor: AppColors.cardBackground(brightness),
                     leading: Container(
                       margin: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: AppColors.cardBackground,
+                      decoration: BoxDecoration(
+                        color: AppColors.cardBackground(brightness),
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.shadow,
+                            color: AppColors.shadow(brightness),
                             blurRadius: 4,
                           ),
                         ],
                       ),
                       child: IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back),
+                        icon: Icon(Icons.arrow_back, color: AppColors.textPrimary(brightness)),
                       ),
                     ),
                     actions: [
@@ -121,11 +122,11 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                         decoration: BoxDecoration(
                           color: isCookingMode
                               ? AppColors.primary
-                              : AppColors.cardBackground,
+                              : AppColors.cardBackground(brightness),
                           shape: BoxShape.circle,
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
-                              color: AppColors.shadow,
+                              color: AppColors.shadow(brightness),
                               blurRadius: 4,
                             ),
                           ],
@@ -137,31 +138,31 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                                 ? Icons.screen_lock_portrait
                                 : Icons.screen_lock_portrait_outlined,
                             color: isCookingMode
-                                ? AppColors.textWhite
-                                : AppColors.textPrimary,
+                                ? Colors.white
+                                : AppColors.textPrimary(brightness),
                           ),
                         ),
                       ),
                       // Share Button
                       Container(
                         margin: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          color: AppColors.cardBackground,
+                        decoration: BoxDecoration(
+                          color: AppColors.cardBackground(brightness),
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.shadow,
+                              color: AppColors.shadow(brightness),
                               blurRadius: 4,
                             ),
                           ],
                         ),
                         child: IconButton(
                           onPressed: () {},
-                          icon: const Icon(Icons.share),
+                          icon: Icon(Icons.share, color: AppColors.textPrimary(brightness)),
                         ),
                       ),
                       // Like Button
-                      _buildLikeButton(likeService, firebaseAuth),
+                      _buildLikeButton(likeService, firebaseAuth, brightness),
                     ],
                     flexibleSpace: FlexibleSpaceBar(
                       background: Stack(
@@ -172,11 +173,11 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) {
                               return Container(
-                                color: AppColors.background,
-                                child: const Icon(
+                                color: AppColors.background(brightness),
+                                child: Icon(
                                   Icons.restaurant,
                                   size: 80,
-                                  color: AppColors.textLight,
+                                  color: AppColors.textTertiary(brightness),
                                 ),
                               );
                             },
@@ -201,9 +202,9 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                   // Content
                   SliverToBoxAdapter(
                     child: Container(
-                      decoration: const BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.vertical(
+                      decoration: BoxDecoration(
+                        color: AppColors.background(brightness),
+                        borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(24),
                         ),
                       ),
@@ -215,10 +216,10 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                             // Title
                             Text(
                               recipe.title,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                                color: AppColors.textPrimary(brightness),
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -232,31 +233,32 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                                       ? NetworkImage(recipe.chef.avatar)
                                       : null,
                                   child: recipe.chef.avatar.isEmpty
-                                      ? const Icon(Icons.person)
+                                      ? Icon(Icons.person, color: AppColors.textTertiary(brightness))
                                       : null,
                                 ),
                                 const SizedBox(width: 12),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      recipe.chef.name,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textPrimary,
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        recipe.chef.name,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.textPrimary(brightness),
+                                        ),
                                       ),
-                                    ),
-                                    Text(
-                                      recipe.chef.role,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        color: AppColors.textSecondary,
+                                      Text(
+                                        recipe.chef.role,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: AppColors.textSecondary(brightness),
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                                const Spacer(),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 12,
@@ -269,7 +271,7 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                                   child: Text(
                                     recipe.difficulty.displayName,
                                     style: const TextStyle(
-                                      color: AppColors.textWhite,
+                                      color: Colors.white,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -304,12 +306,12 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                             const SizedBox(height: 32),
 
                             // Ingredients Section
-                            const Text(
+                            Text(
                               'Malzemeler',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                                color: AppColors.textPrimary(brightness),
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -322,12 +324,12 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                             const SizedBox(height: 32),
 
                             // Preparation Steps
-                            const Text(
+                            Text(
                               'Hazırlama Adımları',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                                color: AppColors.textPrimary(brightness),
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -351,7 +353,7 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                                         child: Text(
                                           '${step.stepNumber}',
                                           style: const TextStyle(
-                                            color: AppColors.textWhite,
+                                            color: Colors.white,
                                             fontSize: 14,
                                             fontWeight: FontWeight.bold,
                                           ),
@@ -362,9 +364,9 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                                     Expanded(
                                       child: Text(
                                         step.description,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 14,
-                                          color: AppColors.textSecondary,
+                                          color: AppColors.textSecondary(brightness),
                                           height: 1.5,
                                         ),
                                       ),
@@ -379,6 +381,7 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
                             _buildLikeButtonFullWidth(
                               likeService,
                               firebaseAuth,
+                              brightness,
                             ),
                             const SizedBox(height: 32),
                           ],
@@ -395,7 +398,7 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
     );
   }
 
-  Widget _buildLikeButton(LikeService likeService, FirebaseAuth firebaseAuth) {
+  Widget _buildLikeButton(LikeService likeService, FirebaseAuth firebaseAuth, Brightness brightness) {
     final currentUser = firebaseAuth.currentUser;
     if (currentUser == null) {
       return const SizedBox.shrink();
@@ -403,12 +406,12 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
 
     return Container(
       margin: const EdgeInsets.all(8),
-      decoration: const BoxDecoration(
-        color: AppColors.cardBackground,
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground(brightness),
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadow,
+            color: AppColors.shadow(brightness),
             blurRadius: 4,
           ),
         ],
@@ -426,7 +429,7 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
             },
             icon: Icon(
               isLiked ? Icons.favorite : Icons.favorite_border,
-              color: isLiked ? Colors.red : AppColors.textPrimary,
+              color: isLiked ? Colors.red : AppColors.textPrimary(brightness),
             ),
           );
         },
@@ -437,6 +440,7 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
   Widget _buildLikeButtonFullWidth(
     LikeService likeService,
     FirebaseAuth firebaseAuth,
+    Brightness brightness,
   ) {
     final currentUser = firebaseAuth.currentUser;
     if (currentUser == null) {
@@ -460,6 +464,7 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
+              color: Colors.white,
             ),
           ),
         ),
@@ -482,7 +487,7 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               backgroundColor: isLiked
-                  ? AppColors.textSecondary
+                  ? AppColors.textSecondary(brightness)
                   : AppColors.primary,
             ),
             child: Text(
@@ -492,6 +497,7 @@ class _RecipeDetailPageState extends State<RecipeDetailPage> {
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
           ),
@@ -613,17 +619,18 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.cardBackground,
+          color: AppColors.cardBackground(brightness),
           borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: AppColors.shadowLight,
+              color: AppColors.shadow(brightness),
               blurRadius: 8,
-              offset: Offset(0, 2),
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -637,18 +644,18 @@ class _StatCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
-                color: AppColors.textLight,
+                color: AppColors.textTertiary(brightness),
                 fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: AppColors.textPrimary,
+                color: AppColors.textPrimary(brightness),
                 fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.center,

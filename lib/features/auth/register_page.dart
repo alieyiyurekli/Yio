@@ -7,6 +7,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/constants/colors.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/user_service.dart';
+import 'login_page.dart';
 
 /// Terms of Service Modal
 class _TermsOfServiceModal extends StatelessWidget {
@@ -120,6 +121,10 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _obscureConfirmPassword = true;
   bool _acceptedTerms = false;
 
+  // Email check state
+  bool _isCheckingEmail = false;
+  bool? _emailExists;
+
   // Step 2: Username
   final _usernameController = TextEditingController();
   bool _isCheckingUsername = false;
@@ -152,27 +157,166 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
+  // ── Email Existence Check ────────────────────────────────────────────────
+
+  Future<void> _checkEmailExists(String email) async {
+    // Validate email format first
+    if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
+      setState(() {
+        _emailExists = null;
+        _isCheckingEmail = false;
+      });
+      return;
+    }
+
+    setState(() => _isCheckingEmail = true);
+
+    try {
+      final exists = await _authService.checkEmailExists(email);
+      if (!mounted) return;
+      setState(() {
+        _emailExists = exists;
+        _isCheckingEmail = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _emailExists = null;
+        _isCheckingEmail = false;
+      });
+    }
+  }
+
   // ── Step 1: Auth Validation ──────────────────────────────────────────────
 
   bool get _isStep1Valid {
+    // Basic validation - email check happens in _proceedToStep2
     return _nameController.text.trim().isNotEmpty &&
         _emailController.text.trim().isNotEmpty &&
         _passwordController.text.length >= 6 &&
         _passwordController.text == _confirmPasswordController.text &&
         _acceptedTerms;
+    // Note: We DON'T check _emailExists here because:
+    // 1. It starts as null
+    // 2. Email check is async and happens when button is pressed
+    // 3. This prevents button from being enabled prematurely
   }
 
-  void _proceedToStep2() {
-    if (!_isStep1Valid) return;
+  Future<void> _proceedToStep2() async {
+    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    debugPrint('[_proceedToStep2] METHOD CALLED');
+    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     
-    // Just navigate to step 2 - no Firebase Auth yet
-    // Auth will be done in the final step
-    _pageController.animateToPage(
-      1,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeInOut,
-    );
-    setState(() => _currentStep = 1);
+    // Basic validation
+    if (!_isStep1Valid) {
+      debugPrint('[_proceedToStep2] ❌ Step1 basic validation failed');
+      debugPrint('  - Name: ${_nameController.text.trim().isNotEmpty}');
+      debugPrint('  - Email: ${_emailController.text.trim().isNotEmpty}');
+      debugPrint('  - Password length: ${_passwordController.text.length >= 6}');
+      debugPrint('  - Passwords match: ${_passwordController.text == _confirmPasswordController.text}');
+      debugPrint('  - Terms accepted: $_acceptedTerms');
+      return;
+    }
+    
+    final email = _emailController.text.trim();
+    debugPrint('[_proceedToStep2] 📧 Email to check: $email');
+    
+    // Validate email format
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      debugPrint('[_proceedToStep2] ❌ Invalid email format');
+      return;
+    }
+    
+    // Start email check
+    debugPrint('[_proceedToStep2] 🔍 Starting email existence check...');
+    setState(() => _isCheckingEmail = true);
+    
+    try {
+      final emailExists = await _authService.checkEmailExists(email);
+      
+      debugPrint('[_proceedToStep2] ✅ Email check completed');
+      debugPrint('[_proceedToStep2] Result: emailExists = $emailExists');
+      
+      if (!mounted) {
+        debugPrint('[_proceedToStep2] ⚠️ Widget not mounted, aborting');
+        return;
+      }
+      
+      setState(() {
+        _emailExists = emailExists;
+        _isCheckingEmail = false;
+      });
+      
+      // CRITICAL: If email exists, STOP and show dialog
+      if (emailExists) {
+        debugPrint('[_proceedToStep2] 🚫 EMAIL EXISTS! Showing dialog and STOPPING');
+        
+        if (!mounted) return;
+        
+        // Show dialog - MUST await this
+        final shouldNavigateToLogin = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false, // Prevent accidental dismissal
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Zaten Mevcut Bir Hesabınız Var'),
+            content: const Text(
+              'Bu e-posta adresiyle daha önce hesap oluşturulmuş. '
+              'Mevcut hesabınızla giriş yapmak ister misiniz?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('İptal'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Giriş Yap'),
+              ),
+            ],
+          ),
+        );
+        
+        // Navigate to login if user confirmed
+        if (shouldNavigateToLogin == true && mounted) {
+          debugPrint('[_proceedToStep2] 🔄 Navigating to LoginPage with prefilled email');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => LoginPage(prefilledEmail: email),
+            ),
+          );
+        }
+        
+        // CRITICAL: RETURN here - DO NOT proceed to step 2
+        debugPrint('[_proceedToStep2] 🛑 STOPPING - not proceeding to step 2');
+        return;
+      }
+      
+      // Email doesn't exist, safe to proceed
+      debugPrint('[_proceedToStep2] ✅ Email available, proceeding to step 2');
+      _pageController.animateToPage(
+        1,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOut,
+      );
+      setState(() => _currentStep = 1);
+      debugPrint('[_proceedToStep2] ✅ Successfully moved to step 2');
+      
+    } catch (e) {
+      debugPrint('[_proceedToStep2] ❌ Error during email check: $e');
+      if (!mounted) return;
+      setState(() => _isCheckingEmail = false);
+      
+      // Show error to user
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('E-posta kontrolü başarısız: ${e.toString()}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+    
+    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   }
 
   // ── Step 2: Username Validation ──────────────────────────────────────────
@@ -296,10 +440,50 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    if (!mounted) return;
+    // Check if email already exists BEFORE attempting registration
     setState(() => _isLoading = true);
-
+    
     try {
+      final email = _emailController.text.trim();
+      final emailAlreadyExists = await _authService.checkEmailExists(email);
+      
+      if (!mounted) return;
+      
+      if (emailAlreadyExists) {
+        setState(() => _isLoading = false);
+        
+        // Show dialog to navigate to login
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('E-posta Zaten Kayıtlı'),
+            content: const Text(
+              'Bu e-posta adresiyle daha önce hesap oluşturulmuş. '
+              'Mevcut hesabınızla giriş yapmak ister misiniz?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('İptal'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context); // Close dialog
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => LoginPage(prefilledEmail: email),
+                    ),
+                  );
+                },
+                child: const Text('Giriş Yap'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
       // Step 1: Register in Firebase Auth
       final credential = await _authService.registerWithEmailAndPassword(
         email: _emailController.text.trim(),
@@ -498,10 +682,11 @@ class _RegisterPageState extends State<RegisterPage> {
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'E-posta',
                 hintText: 'ornek@email.com',
-                prefixIcon: Icon(Icons.email_outlined),
+                prefixIcon: const Icon(Icons.email_outlined),
+                suffixIcon: _buildEmailSuffix(),
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
@@ -513,8 +698,26 @@ class _RegisterPageState extends State<RegisterPage> {
                 }
                 return null;
               },
-              onChanged: (_) => setState(() {}),
+              onChanged: (value) {
+                Future.delayed(const Duration(milliseconds: 500), () {
+                  if (mounted &&
+                      _emailController.text == value &&
+                      value.trim().isNotEmpty) {
+                    _checkEmailExists(value.trim());
+                  }
+                });
+                setState(() {
+                  _emailExists = null;
+                });
+              },
             ),
+
+            // Email exists warning
+            if (_emailExists == true) ...[
+              const SizedBox(height: 12),
+              _buildEmailExistsWarning(),
+            ],
+
             const SizedBox(height: 16),
 
             // Password
@@ -660,6 +863,98 @@ class _RegisterPageState extends State<RegisterPage> {
             const SizedBox(height: 24),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmailSuffix() {
+    if (_isCheckingEmail) {
+      return const SizedBox(
+        height: 20,
+        width: 20,
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    if (_emailExists == true) {
+      return const Icon(Icons.warning_amber_rounded, color: AppColors.warning);
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildEmailExistsWarning() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppColors.warning.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.account_circle_outlined,
+                color: AppColors.warning,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Bu e-posta zaten kayıtlı',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Bu e-posta adresiyle daha önce hesap oluşturulmuş. Giriş yapmak ister misiniz?',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                // Navigate to login with pre-filled email
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => LoginPage(prefilledEmail: _emailController.text.trim()),
+                    ),
+                  );
+              },
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              icon: const Icon(Icons.login, size: 18),
+              label: const Text(
+                'Giriş Yap',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

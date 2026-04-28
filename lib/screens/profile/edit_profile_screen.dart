@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/constants/colors.dart';
+import '../../core/constants/app_colors.dart';
 import '../../core/models/app_user.dart';
 import '../../core/services/user_service.dart';
 import '../../providers/edit_profile_provider.dart';
@@ -116,10 +116,11 @@ class _EditProfileScreenState extends State<EditProfileScreen>
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     return ChangeNotifierProvider.value(
       value: _provider,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F8F8),
+        backgroundColor: AppColors.background(brightness),
         appBar: _buildAppBar(),
         body: _buildBody(),
         floatingActionButton: _buildSaveButton(),
@@ -128,8 +129,9 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   }
 
   PreferredSizeWidget _buildAppBar() {
+    final brightness = Theme.of(context).brightness;
     return AppBar(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: AppColors.background(brightness),
       elevation: 0,
       leading: AnimatedBuilder(
         animation: _headerAnimation,
@@ -148,7 +150,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
         child: IconButton(
           onPressed: () => _handleDiscard(),
           icon: const Icon(Icons.close_rounded),
-          color: AppColors.textPrimary,
+          color: AppColors.textPrimary(brightness),
         ),
       ),
       title: AnimatedBuilder(
@@ -165,12 +167,12 @@ class _EditProfileScreenState extends State<EditProfileScreen>
             ),
           );
         },
-        child: const Text(
+        child: Text(
           'Profili Düzenle',
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: AppColors.textPrimary(brightness),
           ),
         ),
       ),
@@ -186,7 +188,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                   fontWeight: FontWeight.w600,
                   color: provider.hasChanges
                       ? AppColors.primary
-                      : AppColors.textLight,
+                      : AppColors.textTertiary(brightness),
                 ),
               ),
             );
@@ -197,6 +199,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   }
 
   Widget _buildBody() {
+    final brightness = Theme.of(context).brightness;
     return Consumer<EditProfileProvider>(
       builder: (context, provider, child) {
         if (provider.isLoading) {
@@ -241,16 +244,20 @@ class _EditProfileScreenState extends State<EditProfileScreen>
             if (provider.isSaving)
               Container(
                 color: Colors.black.withOpacity(0.3),
-                child: const Center(
+                child: Center(
                   child: Card(
+                    color: AppColors.cardBackground(brightness),
                     child: Padding(
-                      padding: EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(24),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          CircularProgressIndicator(color: AppColors.primary),
-                          SizedBox(height: 16),
-                          Text('Kaydediliyor...'),
+                          const CircularProgressIndicator(color: AppColors.primary),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Kaydediliyor...',
+                            style: TextStyle(color: AppColors.textPrimary(brightness)),
+                          ),
                         ],
                       ),
                     ),
@@ -264,6 +271,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   }
 
   Widget _buildSaveButton() {
+    final brightness = Theme.of(context).brightness;
     return Consumer<EditProfileProvider>(
       builder: (context, provider, child) {
         return ScaleTransition(
@@ -281,7 +289,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                   )
                 : const Icon(Icons.check_rounded, size: 20),
             onPressed: provider.canSave ? () => _handleSave(provider) : null,
-            backgroundColor: provider.canSave ? AppColors.primary : AppColors.textLight,
+            backgroundColor: provider.canSave ? AppColors.primary : AppColors.textTertiary(brightness),
             elevation: provider.canSave ? 8 : 0,
             extendedPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
             shape: RoundedRectangleBorder(
@@ -372,6 +380,7 @@ class _AvatarSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     final displayImage = selectedImage ?? (user.photoUrl != null ? null : 'initials');
 
     return Column(
@@ -457,11 +466,11 @@ class _AvatarSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        const Text(
+        Text(
           'Profil fotoğrafını değiştirmek için dokunun',
           style: TextStyle(
             fontSize: 12,
-            color: AppColors.textSecondary,
+            color: AppColors.textSecondary(brightness),
           ),
         ),
         if (selectedImage != null)
@@ -476,13 +485,14 @@ class _AvatarSection extends StatelessWidget {
   }
 
   Future<void> _showImageSourceSheet(BuildContext context) async {
+    final brightness = Theme.of(context).brightness;
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: AppColors.cardBackground(brightness),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: SafeArea(
           child: Column(
@@ -493,23 +503,26 @@ class _AvatarSection extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.textLight,
+                  color: AppColors.textTertiary(brightness),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Fotoğraf Seç',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: AppColors.textPrimary(brightness),
                 ),
               ),
               const SizedBox(height: 24),
               ListTile(
                 leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
-                title: const Text('Kamera'),
+                title: Text(
+                  'Kamera',
+                  style: TextStyle(color: AppColors.textPrimary(brightness)),
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   onPickImage(ImageSource.camera);
@@ -517,7 +530,10 @@ class _AvatarSection extends StatelessWidget {
               ),
               ListTile(
                 leading: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
-                title: const Text('Galeri'),
+                title: Text(
+                  'Galeri',
+                  style: TextStyle(color: AppColors.textPrimary(brightness)),
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   onPickImage(ImageSource.gallery);
@@ -584,10 +600,11 @@ class _BasicInfoSectionState extends State<_BasicInfoSection> {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardBackground(brightness),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -600,25 +617,25 @@ class _BasicInfoSectionState extends State<_BasicInfoSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Text(
               'Temel Bilgiler',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
+                color: AppColors.textSecondary(brightness),
                 letterSpacing: 0.5,
               ),
             ),
           ),
           _NameField(controller: widget.nameController),
-          const Divider(height: 1, indent: 20, endIndent: 20),
+          Divider(height: 1, indent: 20, endIndent: 20, color: AppColors.border(brightness)),
           _UsernameField(
             controller: widget.usernameController,
             provider: widget.provider,
           ),
-          const Divider(height: 1, indent: 20, endIndent: 20),
+          Divider(height: 1, indent: 20, endIndent: 20, color: AppColors.border(brightness)),
           _BioField(controller: widget.bioController),
           const SizedBox(height: 8),
         ],
@@ -634,20 +651,21 @@ class _NameField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: TextField(
         controller: controller,
         textCapitalization: TextCapitalization.words,
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           labelText: 'Ad Soyad',
           hintText: 'Adınızı girin',
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          labelStyle: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-          hintStyle: TextStyle(fontSize: 16, color: AppColors.textLight),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          labelStyle: TextStyle(fontSize: 14, color: AppColors.textSecondary(brightness)),
+          hintStyle: TextStyle(fontSize: 16, color: AppColors.textTertiary(brightness)),
         ),
-        style: const TextStyle(fontSize: 16, color: AppColors.textPrimary),
+        style: TextStyle(fontSize: 16, color: AppColors.textPrimary(brightness)),
       ),
     );
   }
@@ -664,6 +682,7 @@ class _UsernameField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: TextField(
@@ -678,11 +697,11 @@ class _UsernameField extends StatelessWidget {
           hintText: '@kullaniciadi',
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          labelStyle: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
-          hintStyle: const TextStyle(fontSize: 16, color: AppColors.textLight),
+          labelStyle: TextStyle(fontSize: 14, color: AppColors.textSecondary(brightness)),
+          hintStyle: TextStyle(fontSize: 16, color: AppColors.textTertiary(brightness)),
           suffixIcon: _buildStatusIcon(),
         ),
-        style: const TextStyle(fontSize: 16, color: AppColors.textPrimary),
+        style: TextStyle(fontSize: 16, color: AppColors.textPrimary(brightness)),
       ),
     );
   }
@@ -721,6 +740,7 @@ class _BioField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: TextField(
@@ -728,16 +748,16 @@ class _BioField extends StatelessWidget {
         maxLines: 3,
         maxLength: AppConstants.bioMaxLength,
         textCapitalization: TextCapitalization.sentences,
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           labelText: 'Hakkında',
           hintText: 'Kendinizden bahsedin...',
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          labelStyle: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-          hintStyle: TextStyle(fontSize: 16, color: AppColors.textLight),
-          counterStyle: TextStyle(fontSize: 12, color: AppColors.textLight),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          labelStyle: TextStyle(fontSize: 14, color: AppColors.textSecondary(brightness)),
+          hintStyle: TextStyle(fontSize: 16, color: AppColors.textTertiary(brightness)),
+          counterStyle: TextStyle(fontSize: 12, color: AppColors.textTertiary(brightness)),
         ),
-        style: const TextStyle(fontSize: 16, color: AppColors.textPrimary),
+        style: TextStyle(fontSize: 16, color: AppColors.textPrimary(brightness)),
       ),
     );
   }
@@ -758,10 +778,11 @@ class _InterestsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardBackground(brightness),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -774,14 +795,14 @@ class _InterestsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Text(
               'İlgi Alanları',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
+                color: AppColors.textSecondary(brightness),
                 letterSpacing: 0.5,
               ),
             ),
@@ -821,6 +842,7 @@ class _InterestChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
@@ -829,10 +851,10 @@ class _InterestChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : AppColors.background,
+            color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : AppColors.background(brightness),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isSelected ? AppColors.primary : AppColors.border,
+              color: isSelected ? AppColors.primary : AppColors.border(brightness),
               width: isSelected ? 1.5 : 1,
             ),
           ),
@@ -853,7 +875,7 @@ class _InterestChip extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                  color: isSelected ? AppColors.primary : AppColors.textSecondary(brightness),
                 ),
               ),
             ],
@@ -875,10 +897,11 @@ class _AccountSettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.cardBackground(brightness),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -891,14 +914,14 @@ class _AccountSettingsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Text(
               'Hesap Bilgileri',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
+                color: AppColors.textSecondary(brightness),
                 letterSpacing: 0.5,
               ),
             ),
@@ -907,16 +930,16 @@ class _AccountSettingsSection extends StatelessWidget {
             icon: Icons.email_outlined,
             title: 'E-posta',
             value: user.email,
-            valueColor: AppColors.textSecondary,
+            valueColor: AppColors.textSecondary(brightness),
           ),
-          const Divider(height: 1, indent: 20, endIndent: 20),
+          Divider(height: 1, indent: 20, endIndent: 20, color: AppColors.border(brightness)),
           _SettingTile(
             icon: Icons.calendar_today_outlined,
             title: 'Katılma Tarihi',
             value: _formatDate(user.createdAt),
-            valueColor: AppColors.textSecondary,
+            valueColor: AppColors.textSecondary(brightness),
           ),
-          const Divider(height: 1, indent: 20, endIndent: 20),
+          Divider(height: 1, indent: 20, endIndent: 20, color: AppColors.border(brightness)),
           _SettingTile(
             icon: Icons.verified_outlined,
             title: 'Hesap Durumu',
@@ -953,6 +976,7 @@ class _SettingTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -961,10 +985,10 @@ class _SettingTile extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: AppColors.background,
+              color: AppColors.background(brightness),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 20, color: AppColors.textSecondary),
+            child: Icon(icon, size: 20, color: AppColors.textSecondary(brightness)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -973,9 +997,9 @@ class _SettingTile extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textLight,
+                    color: AppColors.textTertiary(brightness),
                   ),
                 ),
                 const SizedBox(height: 2),

@@ -16,6 +16,15 @@ import 'providers/add_recipe_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/settings_provider.dart';
 import 'services/firebase_storage_service.dart';
+import 'services/follow_service.dart';
+import 'services/user_search_service.dart';
+import 'services/follow_request_service.dart';
+import 'services/mutual_follow_service.dart';
+import 'providers/follow_provider.dart';
+import 'providers/search_provider.dart';
+import 'providers/follow_request_provider.dart';
+import 'providers/user_list_provider.dart';
+import 'providers/mutual_follow_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -96,6 +105,79 @@ class YioRecipeApp extends StatelessWidget {
         // Settings provider — manages app settings and preferences
         ChangeNotifierProvider<SettingsProvider>(
           create: (_) => SettingsProvider()..init(),
+        ),
+
+        // Follow system services
+        Provider<FollowService>(
+          create: (_) => FollowService(),
+        ),
+        Provider<UserSearchService>(
+          create: (_) => UserSearchService(),
+        ),
+        Provider<FollowRequestService>(
+          create: (_) => FollowRequestService(),
+        ),
+        Provider<MutualFollowService>(
+          create: (_) => MutualFollowService(),
+        ),
+
+        // Follow system providers
+        ChangeNotifierProxyProvider2<FirebaseAuth, UserSearchService, FollowProvider>(
+          create: (_) => FollowProvider(
+            followService: FollowService(),
+            userSearchService: UserSearchService(),
+          ),
+          update: (_, auth, userSearchService, previous) {
+            return previous ?? FollowProvider(
+              followService: FollowService(),
+              userSearchService: userSearchService,
+            );
+          },
+        ),
+
+        ChangeNotifierProxyProvider<FirebaseAuth, SearchProvider>(
+          create: (_) => SearchProvider(
+            userSearchService: UserSearchService(),
+          ),
+          update: (_, auth, previous) {
+            return previous ?? SearchProvider(
+              userSearchService: UserSearchService(),
+            );
+          },
+        ),
+
+        ChangeNotifierProxyProvider<FirebaseAuth, FollowRequestProvider>(
+          create: (_) => FollowRequestProvider(
+            followRequestService: FollowRequestService(),
+          ),
+          update: (_, auth, previous) {
+            return previous ?? FollowRequestProvider(
+              followRequestService: FollowRequestService(),
+            );
+          },
+        ),
+
+        ChangeNotifierProxyProvider<FirebaseAuth, UserListProvider>(
+          create: (_) => UserListProvider(
+            userSearchService: UserSearchService(),
+          ),
+          update: (_, auth, previous) {
+            return previous ?? UserListProvider(
+              userSearchService: UserSearchService(),
+            );
+          },
+        ),
+
+        // Mutual follow provider
+        ChangeNotifierProxyProvider2<FirebaseAuth, MutualFollowService, MutualFollowProvider>(
+          create: (_) => MutualFollowProvider(
+            mutualFollowService: MutualFollowService(),
+          ),
+          update: (_, auth, mutualFollowService, previous) {
+            return previous ?? MutualFollowProvider(
+              mutualFollowService: mutualFollowService,
+            );
+          },
         ),
       ],
       child: Builder(

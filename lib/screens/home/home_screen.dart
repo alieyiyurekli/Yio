@@ -6,7 +6,6 @@ import '../../core/services/recipe_service.dart';
 import '../../core/services/like_service.dart';
 import '../../widgets/recipe_card.dart';
 import '../../widgets/story_avatar.dart';
-import '../../core/constants/colors.dart';
 import '../../models/recipe_model.dart';
 
 /// Home Screen — Real recipe feed from Firestore

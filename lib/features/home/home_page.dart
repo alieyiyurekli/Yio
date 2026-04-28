@@ -10,6 +10,7 @@ import '../../widgets/recipe_card.dart';
 import '../../models/recipe_model.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/profile/profile_screen.dart';
+import 'user_search_tab.dart';
 
 /// Home Page — main bottom navigation shell for authenticated normal users.
 ///
@@ -37,7 +38,7 @@ class _HomePageState extends State<HomePage> {
         case 0:
           return const HomeScreen();
         case 1:
-          return const SearchTab();
+          return const UserSearchTab();
         case 2:
           return const LikesTab();
         case 3:

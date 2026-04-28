@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../constants/app_constants.dart';
 
 /// Firebase Authentication Service
@@ -165,6 +166,84 @@ class AuthService {
     } catch (e) {
       throw Exception('Hesap silinirken hata: ${e.toString()}');
     }
+  }
+
+  /// Check if email already exists in Firebase Auth
+  /// Returns true if email is already registered, false otherwise
+  ///
+  /// Uses MULTI-APPROACH for reliability:
+  /// 1. Try fetchSignInMethodsForEmail first
+  /// 2. If that returns empty with valid email format, also try signInWithEmailAndPassword
+  ///    to definitively check if account exists
+  Future<bool> checkEmailExists(String email) async {
+    try {
+      final trimmedEmail = email.trim();
+      
+      // Invalid email format = treat as not exists (form validation should catch this)
+      if (!_isValidEmailFormat(trimmedEmail)) {
+        debugPrint('[AuthService] Invalid email format, returning false');
+        return false;
+      }
+      
+      debugPrint('[AuthService] checkEmailExists called with: $trimmedEmail');
+      
+      // APPROACH 1: fetchSignInMethodsForEmail
+      // This is the "correct" API but has edge cases
+      try {
+        final methods = await _auth.fetchSignInMethodsForEmail(trimmedEmail);
+        debugPrint('[AuthService] Approach 1 - fetchSignInMethodsForEmail: ${methods.length} methods');
+        
+        // If we have sign-in methods, email definitely exists
+        if (methods.isNotEmpty) {
+          debugPrint('[AuthService] Email exists (has sign-in methods)');
+          return true;
+        }
+      } catch (e) {
+        debugPrint('[AuthService] Approach 1 failed: $e');
+      }
+      
+      // APPROACH 2: Try to sign in with wrong password
+      // This is DEFINITIVE - if account exists, we get wrong-password error
+      // If account doesn't exist, we get user-not-found error
+      debugPrint('[AuthService] Trying Approach 2 - signInWithEmailAndPassword');
+      try {
+        await _auth.signInWithEmailAndPassword(
+          email: trimmedEmail,
+          password: '__DUMMY_PASSWORD_TO_CHECK_EMAIL_EXISTS__',
+        );
+        // If we reach here, email exists (very unlikely with wrong password)
+        debugPrint('[AuthService] Approach 2 - unexpected success, email exists');
+        return true;
+      } on FirebaseAuthException catch (e) {
+        debugPrint('[AuthService] Approach 2 exception: ${e.code}');
+        
+        // "email/password" credential exists but wrong password = EMAIL EXISTS
+        if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+          debugPrint('[AuthService] Email exists (wrong password)');
+          return true;
+        }
+        
+        // "user-not-found" = EMAIL DOES NOT EXIST
+        if (e.code == 'user-not-found') {
+          debugPrint('[AuthService] Email does not exist (user-not-found)');
+          return false;
+        }
+        
+        // Other error: for safety, assume email might exist
+        debugPrint('[AuthService] Unknown error, being cautious: assume exists');
+        return true;
+      }
+    } catch (e) {
+      debugPrint('[AuthService] checkEmailExists completely failed: $e');
+      // On complete failure, return true to be safe (block registration)
+      // This forces user to check manually via login
+      return true;
+    }
+  }
+  
+  /// Helper to validate email format
+  bool _isValidEmailFormat(String email) {
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
   }
 
   /// Handle Firebase Auth exceptions and return user-friendly messages

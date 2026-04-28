@@ -7,7 +7,6 @@ import '../../core/models/app_user.dart';
 import '../../core/services/recipe_service.dart';
 import '../../core/services/like_service.dart';
 import '../../core/services/user_service.dart';
-import '../../providers/theme_provider.dart';
 import '../../models/recipe_model.dart';
 import '../../widgets/recipe_card.dart';
 import 'edit_profile_screen.dart';

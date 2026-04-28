@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../core/constants/colors.dart';
+import '../core/constants/app_colors.dart';
 import '../navigation/bottom_navbar.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/profile/profile_screen.dart';
+import '../screens/search/search_screen.dart';
 
 /// Main bottom navigation layout — shown when user is authenticated.
 class MainNavigation extends StatefulWidget {
@@ -15,9 +16,9 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
+  late final List<Widget> _screens = [
     const HomeScreen(),
-    const _SearchScreen(),
+    const SearchScreen(),
     const _LikesScreen(),
     const ProfileScreen(),
   ];
@@ -41,55 +42,15 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 }
 
-class _SearchScreen extends StatelessWidget {
-  const _SearchScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.search,
-                size: 80,
-                color: AppColors.primary.withOpacity(0.5),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Arama',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Yakında geliyor...',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _LikesScreen extends StatelessWidget {
   const _LikesScreen();
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.background(brightness),
       body: SafeArea(
         child: Center(
           child: Column(
@@ -101,20 +62,20 @@ class _LikesScreen extends StatelessWidget {
                 color: AppColors.primary.withOpacity(0.5),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Beğendiklerim',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: AppColors.textPrimary(brightness),
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Beğendiğin tarifler burada görünecek',
                 style: TextStyle(
                   fontSize: 14,
-                  color: AppColors.textSecondary,
+                  color: AppColors.textSecondary(brightness),
                 ),
               ),
             ],

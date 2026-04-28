@@ -18,6 +18,11 @@ import '../../features/onboarding/onboarding_page.dart';
 import '../../features/recipe/add_recipe_page.dart';
 import '../../features/recipe/recipe_detail_page.dart';
 import '../../screens/ai/ai_assistant_screen.dart' show AIAssistantScreen;
+import '../../screens/search/search_screen.dart';
+import '../../screens/profile/other_profile_screen.dart';
+import '../../screens/profile/followers_screen.dart';
+import '../../screens/profile/following_screen.dart';
+import '../../screens/profile/follow_requests_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Route path sabitleri
@@ -58,6 +63,21 @@ class AppRoutes {
 
   /// AI asistan sayfası
   static const aiAssistant = '/ai-assistant';
+
+  /// Kullanıcı arama sayfası
+  static const search = '/search';
+
+  /// Diğer kullanıcı profili sayfası — userId parametresi gerekli
+  static const otherProfile = '/other-profile';
+
+  /// Takipçiler sayfası — userId parametresi gerekli
+  static const followers = '/followers';
+
+  /// Takip edilenler sayfası — userId parametresi gerekli
+  static const following = '/following';
+
+  /// Takip istekleri sayfası
+  static const followRequests = '/follow-requests';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -288,14 +308,39 @@ GoRouter createGoRouter({
 
       final appUser = notifier.appUser!;
 
-      // ── 4. Onboarding tamamlanmamış → onboarding sayfasına yönlendir ─────
+      // ── 4. Kullanıcı login sayfasındaysa ve auth varsa → direkt home'a ─────
+      // ÖNEMLİ: Kullanıcı çıkış yaptıktan sonra tekrar girdiğinde,
+      // login sayfasında kalmasın ve direkt home'a gitsin.
+      // Onboarding durumuna bakılmaz - çünkü kullanıcı zaten daha önce
+      // giriş yapmış ve profil oluşturmuş demektir.
+      if (currentPath == AppRoutes.login) {
+        debugPrint('[GoRouter] Kullanıcı login sayfasında ama auth var → direkt home\'a yönlendiriliyor');
+        if (appUser.role == AppConstants.roleAdmin) {
+          return AppRoutes.adminHome;
+        }
+        return AppRoutes.home;
+      }
+
+      // ── 5. Kullanıcı register sayfasındaysa ve onboarding tamamsa → home'a ─────
+      // Kullanıcı zaten kayıt olmuş ve onboarding'i tamamlamışsa,
+      // tekrar register ekranında kalmamalı
+      if (currentPath == AppRoutes.register && appUser.onboardingCompleted) {
+        debugPrint('[GoRouter] Kullanıcı register sayfasında ama onboarding tamam → home\'a yönlendiriliyor');
+        if (appUser.role == AppConstants.roleAdmin) {
+          return AppRoutes.adminHome;
+        }
+        return AppRoutes.home;
+      }
+
+      // ── 6. Onboarding tamamlanmamış → onboarding sayfasına yönlendir ─────
+      // Sadece register sayfasından gelen yeni kullanıcılar için
       if (!appUser.onboardingCompleted) {
         debugPrint('[GoRouter] Onboarding tamamlanmamış → onboarding sayfasına yönlendiriliyor');
         if (currentPath == AppRoutes.onboarding) return null;
         return AppRoutes.onboarding;
       }
 
-      // ── 5. Onboarding tamamlandı — auth sayfalarından çıkar ──────────────
+      // ── 6. Onboarding tamamlandı — auth sayfalarından çıkar ──────────────
       // Kullanıcı authenticated + onboarding tamamlamış iken login/register/
       // onboarding sayfalarında kalmamalı
       final isOnAuthPage = currentPath == AppRoutes.login ||
@@ -407,6 +452,53 @@ GoRouter createGoRouter({
         path: AppRoutes.aiAssistant,
         name: 'aiAssistant',
         builder: (context, state) => const AIAssistantScreen(),
+      ),
+
+      // Search — kullanıcı arama sayfası
+      GoRoute(
+        path: AppRoutes.search,
+        name: 'search',
+        builder: (context, state) => const SearchScreen(),
+      ),
+
+      // Other Profile — diğer kullanıcı profili
+      // userId path parametresi: /other-profile/:userId
+      GoRoute(
+        path: '${AppRoutes.otherProfile}/:userId',
+        name: 'otherProfile',
+        builder: (context, state) {
+          final userId = state.pathParameters['userId'] ?? '';
+          return OtherProfileScreen(userId: userId);
+        },
+      ),
+
+      // Followers — takipçiler sayfası
+      // userId path parametresi: /followers/:userId
+      GoRoute(
+        path: '${AppRoutes.followers}/:userId',
+        name: 'followers',
+        builder: (context, state) {
+          final userId = state.pathParameters['userId'] ?? '';
+          return FollowersScreen(userId: userId);
+        },
+      ),
+
+      // Following — takip edilenler sayfası
+      // userId path parametresi: /following/:userId
+      GoRoute(
+        path: '${AppRoutes.following}/:userId',
+        name: 'following',
+        builder: (context, state) {
+          final userId = state.pathParameters['userId'] ?? '';
+          return FollowingScreen(userId: userId);
+        },
+      ),
+
+      // Follow Requests — takip istekleri sayfası
+      GoRoute(
+        path: AppRoutes.followRequests,
+        name: 'followRequests',
+        builder: (context, state) => const FollowRequestsScreen(),
       ),
     ],
 

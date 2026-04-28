@@ -11,7 +11,9 @@ import 'forgot_password_page.dart';
 /// On success, authStateChanges fires and [AppRouter] handles navigation.
 /// No manual navigation needed here.
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  final String? prefilledEmail;
+
+  const LoginPage({super.key, this.prefilledEmail});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -19,12 +21,22 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
 
   bool _obscurePassword = true;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Set prefilled email if provided
+    if (widget.prefilledEmail != null && widget.prefilledEmail!.isNotEmpty) {
+      _emailController.text = widget.prefilledEmail!;
+      debugPrint('[LoginPage] Prefilled email set: ${widget.prefilledEmail}');
+    }
+  }
 
   @override
   void dispose() {
