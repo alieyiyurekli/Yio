@@ -7,7 +7,6 @@ import '../../core/constants/app_spacing.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../models/user_model.dart';
 import '../../providers/follow_provider.dart';
-import '../../providers/mutual_follow_provider.dart';
 import '../../widgets/mutual_follow_badge.dart';
 
 class OtherProfileScreen extends StatefulWidget {

@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../core/constants/follow_constants.dart';
 import '../models/mutual_follow_model.dart';
 
 /// Mutual Follow Service (Takipleşme Servisi)

@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../core/constants/follow_constants.dart';
 import '../models/follow_models.dart';
-import '../models/mutual_follow_model.dart';
 import 'mutual_follow_service.dart';
 
 /// Follow Service

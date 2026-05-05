@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/constants/app_text_styles.dart';
-import '../../models/user_model.dart';
 import '../../providers/follow_provider.dart';
 import '../../providers/search_provider.dart';
 import 'package:go_router/go_router.dart';

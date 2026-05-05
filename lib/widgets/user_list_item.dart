@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_spacing.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../models/user_model.dart';
-import '../../providers/follow_provider.dart';
 import 'follow_button.dart';
 
 /// Reusable User List Item Widget
