@@ -22,11 +22,17 @@ import '../../services/firebase_profile_image_service.dart';
 /// - Save only when changes detected
 /// - Smooth animations and responsive design
 class EditProfileScreen extends StatefulWidget {
-  final AppUser user;
+  /// Mevcut kullanıcının profilini düzenlemek için null bırakın.
+  /// Başka bir kullanıcının profilini düzenlemek için userId verin.
+  final String? userId;
+
+  /// Doğrudan kullanıcı objesi verilirse, profil tekrar yüklenmez.
+  final AppUser? user;
 
   const EditProfileScreen({
     super.key,
-    required this.user,
+    this.userId,
+    this.user,
   });
 
   @override
@@ -46,12 +52,48 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
 
+  bool _isLoadingUser = true;
+  String? _loadError;
+  AppUser? _loadedUser;
+
   @override
   void initState() {
     super.initState();
-    _setupProvider();
     _setupAnimations();
     _setupScrollListener();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    // Eğer kullanıcı doğrudan verilmişse kullan
+    if (widget.user != null) {
+      _loadedUser = widget.user;
+      _setupProvider();
+      setState(() => _isLoadingUser = false);
+      return;
+    }
+
+    // Eğer userId verilmişse Firestore'dan yükle
+    if (widget.userId != null) {
+      try {
+        final userService = context.read<UserService>();
+        final user = await userService.getUserProfile(widget.userId!);
+        if (user != null) {
+          _loadedUser = user;
+          _setupProvider();
+        } else {
+          _loadError = 'Kullanıcı bulunamadı';
+        }
+      } catch (e) {
+        _loadError = 'Kullanıcı yüklenirken hata: $e';
+      }
+    } else {
+      _loadError = 'Kullanıcı bilgisi verilmedi';
+    }
+
+    if (mounted) {
+      setState(() => _isLoadingUser = false);
+    }
   }
 
   void _setupProvider() {
@@ -59,12 +101,14 @@ class _EditProfileScreenState extends State<EditProfileScreen>
       userService: context.read<UserService>(),
       imageService: FirebaseProfileImageService(),
     );
-    _provider.initializeWithUser(widget.user);
 
-    // Initialize controllers
-    _nameController.text = widget.user.name;
-    _usernameController.text = widget.user.username ?? '';
-    _bioController.text = widget.user.bio ?? '';
+    if (_loadedUser != null) {
+      _provider.initializeWithUser(_loadedUser!);
+      // Initialize controllers
+      _nameController.text = _loadedUser!.name;
+      _usernameController.text = _loadedUser!.username ?? '';
+      _bioController.text = _loadedUser!.bio ?? '';
+    }
   }
 
   void _setupAnimations() {
@@ -117,7 +161,58 @@ class _EditProfileScreenState extends State<EditProfileScreen>
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
-    return ChangeNotifierProvider.value(
+
+    // Loading durumu
+    if (_isLoadingUser) {
+      return Scaffold(
+        backgroundColor: AppColors.background(brightness),
+        appBar: AppBar(
+          backgroundColor: AppColors.background(brightness),
+          elevation: 0,
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    // Error durumu
+    if (_loadError != null || _loadedUser == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background(brightness),
+        appBar: AppBar(
+          backgroundColor: AppColors.background(brightness),
+          elevation: 0,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 56,
+                color: AppColors.error,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _loadError ?? 'Kullanıcı yüklenemedi',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: AppColors.textSecondary(brightness),
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Geri Dön'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ChangeNotifierProvider<EditProfileProvider>.value(
       value: _provider,
       child: Scaffold(
         backgroundColor: AppColors.background(brightness),
@@ -288,7 +383,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
                     ),
                   )
                 : const Icon(Icons.check_rounded, size: 20),
-            onPressed: provider.canSave ? () => _handleSave(provider) : null,
+            onPressed: provider.canSave && !provider.isSaving ? () => _handleSave() : null,
             backgroundColor: provider.canSave ? AppColors.primary : AppColors.textTertiary(brightness),
             elevation: provider.canSave ? 8 : 0,
             extendedPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
@@ -301,40 +396,60 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     );
   }
 
-  Future<void> _handleSave(EditProfileProvider provider) async {
-    final success = await provider.saveProfile();
-    if (success && mounted) {
-      Navigator.of(context).pop(provider.editingUser);
-      _showSuccessSnackBar();
+  Future<void> _handleSave() async {
+    try {
+      final success = await _provider.saveProfile();
+      if (mounted) {
+        if (success) {
+          Navigator.of(context).pop(_provider.editingUser);
+          _showSuccessSnackBar();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_provider.errorMessage ?? 'Kaydetme başarısız'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Hata: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _handleDiscard() async {
-    final provider = context.read<EditProfileProvider>();
-    if (provider.hasChanges) {
-      final shouldDiscard = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Değişiklikleri iptal et?'),
-          content: const Text('Yaptığınız değişiklikler kaydedilmeyecek.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Vazgeç'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: TextButton.styleFrom(foregroundColor: AppColors.error),
-              child: const Text('İptal Et'),
-            ),
-          ],
-        ),
-      );
-      if (shouldDiscard == true) {
-        if (mounted) Navigator.of(context).pop();
-      }
-    } else {
-      if (mounted) Navigator.of(context).pop();
+    if (!_provider.hasChanges) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    final shouldDiscard = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Değişiklikleri iptal et?'),
+        content: const Text('Yaptığınız değişiklikler kaydedilmeyecek.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Vazgeç'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('İptal Et'),
+          ),
+        ],
+      ),
+    );
+    if (shouldDiscard == true && mounted) {
+      Navigator.of(context).pop();
     }
   }
 

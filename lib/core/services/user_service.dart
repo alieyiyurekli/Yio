@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+// FirebaseException için
 import '../constants/app_constants.dart';
 import '../models/app_user.dart';
 
@@ -73,7 +74,8 @@ class UserService {
         debugPrint('[UserService] getUserProfile: document not found for $uid');
         return null;
       }
-      return AppUser.fromMap(doc.data()!);
+      debugPrint('[UserService] getUserProfile: document found for $uid, doc.id=${doc.id}');
+      return AppUser.fromDocument(doc);
     } catch (e) {
       debugPrint('[UserService] getUserProfile error: $e');
       return null;
@@ -93,8 +95,8 @@ class UserService {
         debugPrint('[UserService.userProfileStream] Document missing for $uid');
         return null;
       }
-      debugPrint('[UserService.userProfileStream] Snapshot received for $uid');
-      return AppUser.fromMap(doc.data()!);
+      debugPrint('[UserService.userProfileStream] Snapshot received for $uid, doc.id=${doc.id}');
+      return AppUser.fromDocument(doc);
     }).handleError((Object error, StackTrace stack) {
       debugPrint('[UserService.userProfileStream] Stream error for $uid: $error');
       throw error;
@@ -193,19 +195,34 @@ class UserService {
   /// Queries all user documents where `username == [username]`.
   /// Case-insensitive check is enforced by storing usernames in lowercase.
   ///
-  /// Returns `true` if available, `false` if already taken.
+  /// Returns `true` if available.
+  /// Throws Exception on permission-denied or other errors.
   Future<bool> isUsernameAvailable(String username) async {
+    debugPrint('[UserService] isUsernameAvailable: checking $username');
+    
     try {
       final normalised = username.trim().toLowerCase();
       final query = await _usersRef
           .where(AppConstants.fieldUsername, isEqualTo: normalised)
           .limit(1)
           .get();
+      
+      debugPrint('[UserService] isUsernameAvailable: query returned ${query.docs.length} docs');
       return query.docs.isEmpty;
+    } on FirebaseException catch (e) {
+      debugPrint('[UserService] ❌ FirebaseException: ${e.code}');
+      debugPrint('[UserService] ❌ FirebaseException message: ${e.message}');
+      
+      if (e.code == 'permission-denied' || e.code == 'missing-permission') {
+        debugPrint('[UserService] ❌ PERMISSION DENIED - username check failed');
+        throw Exception('Firestore erişim hatası: Lütfen daha sonra tekrar deneyin');
+      }
+      
+      debugPrint('[UserService] ❌ Other Firestore error: ${e.code}');
+      throw Exception('Kullanıcı adı kontrol edilemedi: ${e.code}');
     } catch (e) {
-      debugPrint('[UserService] isUsernameAvailable error: $e');
-      // Fail open — let user proceed, uniqueness enforced by Firestore rules
-      return true;
+      debugPrint('[UserService] ❌ Unexpected error: $e');
+      throw Exception('Kullanıcı adı kontrol edilemedi');
     }
   }
 

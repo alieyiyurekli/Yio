@@ -3,52 +3,115 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../constants/app_constants.dart';
 
-/// Firebase Authentication Service
+/// Firebase Authentication Service - Production Level
 ///
-/// Handles all Firebase Auth operations including:
-/// - Email/Password registration and login
-/// - Password reset
-/// - Session management
-/// - User-friendly error handling
+/// Kurallar:
+/// - Pre-check YOK (fetchSignInMethodsForEmail KULLANILMAZ)
+/// - Tek doğrulama: createUserWithEmailAndPassword
+/// - Tüm hatalar açıkça mapping edilir
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  /// Stream of auth state changes
+  // ── Getters ─────────────────────────────────────────────────────────────
+
+  /// Auth state değişikliklerini dinle
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  /// Current authenticated user
+  /// Mevcut kullanıcı
   User? get currentUser => _auth.currentUser;
 
-  /// Current user ID or null
+  /// Mevcut user ID
   String? get currentUserId => _auth.currentUser?.uid;
 
-  /// Check if user is logged in
+  /// Giriş yapmış mı?
   bool get isLoggedIn => _auth.currentUser != null;
 
-  /// Get current user ID or throw exception
-  String get requireUserId {
-    final uid = currentUserId;
-    if (uid == null) {
-      throw Exception(AppConstants.errorNotAuthenticated);
-    }
-    return uid;
-  }
-
-  /// Check if email is verified
+  /// Email doğrulanmış mı?
   bool get isEmailVerified => _auth.currentUser?.emailVerified ?? false;
 
-  /// Register with email and password
+  // ── Validation Helpers (Firebase ÖNCESİ) ───────────────────────────────
+
+  /// Email format kontrolü
+  static String? validateEmail(String? email) {
+    if (email == null || email.trim().isEmpty) {
+      return AppConstants.validationEmailRequired;
+    }
+    final trimmed = email.trim();
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(trimmed)) {
+      return AppConstants.validationEmailInvalid;
+    }
+    return null;
+  }
+
+  /// Şifre format kontrolü
+  static String? validatePassword(String? password) {
+    if (password == null || password.isEmpty) {
+      return AppConstants.validationPasswordRequired;
+    }
+    if (password.length < 6) {
+      return AppConstants.validationPasswordTooShort;
+    }
+    return null;
+  }
+
+  /// İsim format kontrolü
+  static String? validateDisplayName(String? name) {
+    if (name == null || name.trim().isEmpty) {
+      return AppConstants.validationNameRequired;
+    }
+    if (name.trim().length < 2) {
+      return AppConstants.validationNameTooShort;
+    }
+    return null;
+  }
+
+  /// Boş alan kontrolü
+  static bool isNotEmpty(String? value) {
+    return value != null && value.trim().isNotEmpty;
+  }
+
+  // ── Register (TEK DOĞRULAMA NOKTASI) ──────────────────────────────────
+
+  /// Email + Şifre ile kayıt
   ///
-  /// Creates a new user account and sends email verification.
-  /// Throws user-friendly error messages.
+  /// ÖNEMLI:
+  /// - Pre-check YOK
+  /// - Direkt Firebase'e kayıt dener
+  /// - Hata varsa FirebaseAuthException fırlatır
+  ///
+  /// Başarılı olursa UserCredential döner.
+  /// Hata olursa FirebaseAuthException üzerinden _mapAuthError mesajı döner.
   Future<UserCredential> registerWithEmailAndPassword({
     required String email,
     required String password,
     required String displayName,
   }) async {
+    // INPUT NORMALIZATION
+    final normalizedEmail = email.trim().toLowerCase();
+    final normalizedDisplayName = displayName.trim();
+
+    if (kDebugMode) {
+      print('[AuthService] 📝 REGISTER ATTEMPT');
+      print('[AuthService] Email: $normalizedEmail');
+      print('[AuthService] DisplayName: $normalizedDisplayName');
+    }
+
+    // FIREBASE VALIDATION GEREKSİZ - UI'da yapıldı
+    // Ama yine de kontrol edelim
+    final emailValidation = validateEmail(normalizedEmail);
+    if (emailValidation != null) {
+      throw Exception(_mapAuthError('invalid-email'));
+    }
+
+    final passwordValidation = validatePassword(password);
+    if (passwordValidation != null) {
+      throw Exception(_mapAuthError('weak-password'));
+    }
+
     try {
+      // TEK DOĞRULAMA NOKTASI
       final credential = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
+        email: normalizedEmail,
         password: password,
       );
 
@@ -56,26 +119,44 @@ class AuthService {
         throw Exception(AppConstants.errorRegisterFailed);
       }
 
-      // Update display name in Firebase Auth
-      await credential.user!.updateDisplayName(displayName.trim());
+      // Display name güncelle
+      await credential.user!.updateDisplayName(normalizedDisplayName);
 
-      // Send email verification
+      // Email verification gönder
       await credential.user!.sendEmailVerification();
 
+      if (kDebugMode) {
+        print('[AuthService] ✅ REGISTER SUCCESS: ${credential.user!.uid}');
+      }
+
       return credential;
+
     } on FirebaseAuthException catch (e) {
-      throw Exception(_handleAuthException(e));
+      if (kDebugMode) {
+        print('[AuthService] ❌ FIREBASE ERROR: ${e.code}');
+        print('[AuthService] ❌ MESSAGE: ${e.message}');
+      }
+      // Firebase hata kodunu kullanıcı dostu mesaja çevir
+      throw Exception(_mapAuthError(e.code));
     }
   }
 
-  /// Sign in with email and password
+  // ── Login ─────────────────────────────────────────────────────────────
+
+  /// Email + Şifre ile giriş
   Future<UserCredential> signInWithEmailAndPassword({
     required String email,
     required String password,
   }) async {
+    final normalizedEmail = email.trim().toLowerCase();
+
+    if (kDebugMode) {
+      print('[AuthService] 🔑 LOGIN ATTEMPT: $normalizedEmail');
+    }
+
     try {
       final credential = await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
+        email: normalizedEmail,
         password: password,
       );
 
@@ -83,13 +164,43 @@ class AuthService {
         throw Exception(AppConstants.errorSignInFailed);
       }
 
+      if (kDebugMode) {
+        print('[AuthService] ✅ LOGIN SUCCESS: ${credential.user!.uid}');
+      }
+
       return credential;
+
     } on FirebaseAuthException catch (e) {
-      throw Exception(_handleAuthException(e));
+      if (kDebugMode) {
+        print('[AuthService] ❌ LOGIN ERROR: ${e.code}');
+      }
+      throw Exception(_mapAuthError(e.code));
     }
   }
 
-  /// Sign out
+  // ── Password Reset ─────────────────────────────────────────────────────
+
+  /// Şifre sıfırlama emaili gönder
+  Future<void> sendPasswordResetEmail(String email) async {
+    final normalizedEmail = email.trim().toLowerCase();
+
+    if (kDebugMode) {
+      print('[AuthService] 📧 PASSWORD RESET: $normalizedEmail');
+    }
+
+    try {
+      await _auth.sendPasswordResetEmail(email: normalizedEmail);
+    } on FirebaseAuthException catch (e) {
+      if (kDebugMode) {
+        print('[AuthService] ❌ PASSWORD RESET ERROR: ${e.code}');
+      }
+      throw Exception(_mapAuthError(e.code));
+    }
+  }
+
+  // ── Sign Out ─────────────────────────────────────────────────────────────
+
+  /// Çıkış yap
   Future<void> signOut() async {
     try {
       await _auth.signOut();
@@ -98,16 +209,9 @@ class AuthService {
     }
   }
 
-  /// Send password reset email
-  Future<void> sendPasswordResetEmail(String email) async {
-    try {
-      await _auth.sendPasswordResetEmail(email: email.trim());
-    } on FirebaseAuthException catch (e) {
-      throw Exception(_handleAuthException(e));
-    }
-  }
+  // ── User Management ─────────────────────────────────────────────────────
 
-  /// Send email verification to current user
+  /// Email doğrulama gönder
   Future<void> sendEmailVerification() async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -118,12 +222,12 @@ class AuthService {
     }
   }
 
-  /// Reload current user data from Firebase
+  /// Kullanıcı verilerini yeniden yükle
   Future<void> reloadUser() async {
     await _auth.currentUser?.reload();
   }
 
-  /// Update user display name in Firebase Auth
+  /// Display name güncelle
   Future<void> updateDisplayName(String displayName) async {
     try {
       await _auth.currentUser?.updateDisplayName(displayName.trim());
@@ -132,34 +236,7 @@ class AuthService {
     }
   }
 
-  /// Update user photo URL in Firebase Auth
-  Future<void> updatePhotoUrl(String photoUrl) async {
-    try {
-      await _auth.currentUser?.updatePhotoURL(photoUrl.trim());
-    } catch (e) {
-      throw Exception('Fotoğraf güncellenemedi: ${e.toString()}');
-    }
-  }
-
-  /// Update user email in Firebase Auth (requires re-authentication)
-  Future<void> updateUserEmail(String newEmail) async {
-    try {
-      await _auth.currentUser?.verifyBeforeUpdateEmail(newEmail.trim());
-    } catch (e) {
-      throw Exception('E-posta güncellenemedi: ${e.toString()}');
-    }
-  }
-
-  /// Update user password (requires re-authentication)
-  Future<void> updateUserPassword(String newPassword) async {
-    try {
-      await _auth.currentUser?.updatePassword(newPassword);
-    } catch (e) {
-      throw Exception('Şifre güncellenemedi: ${e.toString()}');
-    }
-  }
-
-  /// Delete user account (requires re-authentication)
+  /// Hesabı sil
   Future<void> deleteAccount() async {
     try {
       await _auth.currentUser?.delete();
@@ -168,72 +245,68 @@ class AuthService {
     }
   }
 
-  /// Check if email already exists in Firebase Auth
-  /// Returns true if email is already registered, false otherwise
-  ///
-  /// Uses fetchSignInMethodsForEmail - the official Firebase method
-  /// Returns empty list if email doesn't exist, list of providers if it does
-  Future<bool> checkEmailExists(String email) async {
-    try {
-      final trimmedEmail = email.trim();
-      
-      // Invalid email format = treat as not exists (form validation should catch this)
-      if (!_isValidEmailFormat(trimmedEmail)) {
-        debugPrint('[AuthService] Invalid email format, returning false');
-        return false;
-      }
-      
-      debugPrint('[AuthService] checkEmailExists called with: $trimmedEmail');
-      
-      // Use fetchSignInMethodsForEmail - this is the OFFICIAL Firebase method
-      final methods = await _auth.fetchSignInMethodsForEmail(trimmedEmail);
-      
-      debugPrint('[AuthService] fetchSignInMethodsForEmail result: ${methods.length} methods');
-      debugPrint('[AuthService] Methods: $methods');
-      
-      // If list is empty, no sign-in methods exist = email not registered
-      // If list has items (like ['password'], ['google.com']), email is registered
-      final exists = methods.isNotEmpty;
-      
-      debugPrint('[AuthService] Email exists = $exists');
-      return exists;
-      
-    } catch (e) {
-      debugPrint('[AuthService] checkEmailExists error: $e');
-      // On error, return false to allow registration
-      // Better to allow registration and fail at auth step than block valid users
-      return false;
-    }
-  }
-  
-  /// Helper to validate email format
-  bool _isValidEmailFormat(String email) {
-    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
-  }
+  // ── ERROR MAPPING (NET VE AÇIK) ──────────────────────────────────────
 
-  /// Handle Firebase Auth exceptions and return user-friendly messages
-  String _handleAuthException(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'user-not-found':
-        return AppConstants.errorUserNotFound;
-      case 'wrong-password':
-        return AppConstants.errorWrongPassword;
+  /// Firebase Auth error code → Kullanıcı dostu mesaj
+  ///
+  /// ZORUNLU mapping:
+  /// - email-already-in-use → "Bu E-Posta Zaten Kayıtlı"
+  /// - invalid-email → "Geçersiz e-posta adresi"
+  /// - weak-password → "Şifre çok zayıf"
+  /// - operation-not-allowed → "Email/Password girişi aktif değil"
+  /// - network-request-failed → "İnternet bağlantınızı kontrol edin"
+  String _mapAuthError(String code) {
+    switch (code) {
       case 'email-already-in-use':
         return AppConstants.errorEmailInUse;
+
       case 'invalid-email':
         return AppConstants.errorInvalidEmail;
+
       case 'weak-password':
         return AppConstants.errorWeakPassword;
+
+      case 'user-not-found':
+        return AppConstants.errorUserNotFound;
+
+      case 'wrong-password':
+        return AppConstants.errorWrongPassword;
+
       case 'user-disabled':
         return AppConstants.errorUserDisabled;
+
       case 'too-many-requests':
         return AppConstants.errorTooManyRequests;
+
       case 'operation-not-allowed':
         return AppConstants.errorOperationNotAllowed;
+
       case 'network-request-failed':
         return AppConstants.errorNetworkFailed;
+
+      case 'invalid-credential':
+        return 'Geçersiz giriş bilgileri';
+
+      case 'INVALID_CREDENTIAL':
+        return 'Geçersiz giriş bilgileri';
+
+      case 'credential-already-in-use':
+        return 'Bu hesap başka bir cihazda kullanılıyor';
+
+      case 'requires-recent-login':
+        return 'Tekrar giriş yapmanız gerekiyor';
+
+      case 'missing-email':
+        return 'E-posta adresi gerekli';
+
+      case 'invalid-verification-code':
+        return 'Geçersiz doğrulama kodu';
+
+      case 'invalid-verification-id':
+        return 'Geçersiz doğrulama ID';
+
       default:
-        return '${AppConstants.errorGeneric} (${e.code})';
+        return 'Bir hata oluştu ($code)';
     }
   }
 }

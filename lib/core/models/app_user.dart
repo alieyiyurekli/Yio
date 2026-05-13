@@ -58,10 +58,6 @@ class AppUser {
     final onboardingRaw = map[AppConstants.fieldOnboardingCompleted];
     final onboardingCompleted = onboardingRaw == true;
 
-    // Debug log to verify parsing
-    // ignore: avoid_print
-    print('[AppUser.fromMap] onboardingRaw: $onboardingRaw (${onboardingRaw.runtimeType}), parsed: $onboardingCompleted');
-
     return AppUser(
       uid: map[AppConstants.fieldUid] as String? ?? '',
       email: map[AppConstants.fieldEmail] as String? ?? '',
@@ -81,9 +77,12 @@ class AppUser {
   }
 
   /// Create from Firestore DocumentSnapshot.
+  /// Uses document ID as uid since Firestore document ID equals user ID.
   factory AppUser.fromDocument(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    return AppUser.fromMap(data);
+    final appUser = AppUser.fromMap(data);
+    // Use document ID as uid, fallback to parsed uid if document ID is empty
+    return appUser.copyWith(uid: doc.id.isNotEmpty ? doc.id : appUser.uid);
   }
 
   /// Copy with method for immutable updates.

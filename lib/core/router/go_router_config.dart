@@ -19,6 +19,7 @@ import '../../features/recipe/add_recipe_page.dart';
 import '../../features/recipe/recipe_detail_page.dart';
 import '../../screens/ai/ai_assistant_screen.dart' show AIAssistantScreen;
 import '../../screens/search/search_screen.dart';
+import '../../screens/profile/edit_profile_screen.dart';
 import '../../screens/profile/other_profile_screen.dart';
 import '../../screens/profile/followers_screen.dart';
 import '../../screens/profile/following_screen.dart';
@@ -78,6 +79,9 @@ class AppRoutes {
 
   /// Takip istekleri sayfası
   static const followRequests = '/follow-requests';
+
+  /// Profil düzenleme sayfası
+  static const editProfile = '/edit-profile';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -499,6 +503,13 @@ GoRouter createGoRouter({
         path: AppRoutes.followRequests,
         name: 'followRequests',
         builder: (context, state) => const FollowRequestsScreen(),
+      ),
+
+      // Edit Profile — profil düzenleme sayfası
+      GoRoute(
+        path: AppRoutes.editProfile,
+        name: 'editProfile',
+        builder: (context, state) => const EditProfileScreen(),
       ),
     ],
 

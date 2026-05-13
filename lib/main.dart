@@ -25,6 +25,8 @@ import 'providers/search_provider.dart';
 import 'providers/follow_request_provider.dart';
 import 'providers/user_list_provider.dart';
 import 'providers/mutual_follow_provider.dart';
+import 'providers/edit_profile_provider.dart';
+import 'services/firebase_profile_image_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -178,6 +180,14 @@ class YioRecipeApp extends StatelessWidget {
               mutualFollowService: mutualFollowService,
             );
           },
+        ),
+
+        // Edit profile provider
+        ChangeNotifierProvider<EditProfileProvider>(
+          create: (_) => EditProfileProvider(
+            userService: UserService(),
+            imageService: FirebaseProfileImageService(),
+          ),
         ),
       ],
       child: Builder(

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../widgets/settings_widgets.dart';
+import '../../screens/profile/edit_profile_screen.dart';
 import 'dark_mode_screen.dart';
 
 /// Premium Settings Screen
@@ -58,7 +60,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.person_outline,
                 title: 'Profili Düzenle',
                 onTap: () {
-                  // Navigate to edit profile
+                  final userId = FirebaseAuth.instance.currentUser?.uid;
+                  if (userId != null) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => EditProfileScreen(userId: userId),
+                      ),
+                    );
+                  }
                 },
                 isFirst: true,
               ),

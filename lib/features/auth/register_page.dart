@@ -99,7 +99,12 @@ class _TermsOfServiceModal extends StatelessWidget {
 /// Step 3: Profil Fotoğrafı + Bio (Firebase Storage + Firestore)
 /// Step 4: İlgi Alanları (Firestore)
 ///
-/// On completion, onboardingCompleted=true and AppRouter auto-navigates to HomePage.
+/// PRODUCTION FLOW:
+/// 1. UI Validation (email format, password length, etc.)
+/// 2. Username check (Firestore)
+/// 3. Firebase Auth Registration (createUserWithEmailAndPassword)
+/// 
+/// NO pre-checks! Firebase handles email uniqueness on register attempt.
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
@@ -120,10 +125,6 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptedTerms = false;
-
-  // Email check state
-  bool _isCheckingEmail = false;
-  bool? _emailExists;
 
   // Step 2: Username
   final _usernameController = TextEditingController();
@@ -157,169 +158,90 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
-  // ── Email Existence Check ────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  // STEP 1: UI VALIDATION (Firebase'e gitmeden ÖNCE)
+  // ══════════════════════════════════════════════════════════════════════
 
-  Future<void> _checkEmailExists(String email) async {
-    // Validate email format first
-    if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
-      setState(() {
-        _emailExists = null;
-        _isCheckingEmail = false;
-      });
-      return;
-    }
-
-    setState(() => _isCheckingEmail = true);
-
-    try {
-      final exists = await _authService.checkEmailExists(email);
-      if (!mounted) return;
-      setState(() {
-        _emailExists = exists;
-        _isCheckingEmail = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _emailExists = null;
-        _isCheckingEmail = false;
-      });
-    }
+  String? _validateEmail(String? value) {
+    return AuthService.validateEmail(value);
   }
 
-  // ── Step 1: Auth Validation ──────────────────────────────────────────────
+  String? _validatePassword(String? value) {
+    return AuthService.validatePassword(value);
+  }
 
+  String? _validateDisplayName(String? value) {
+    return AuthService.validateDisplayName(value);
+  }
+
+  /// Step 1 form geçerli mi?
   bool get _isStep1Valid {
-    // Basic validation - email check happens in _proceedToStep2
     return _nameController.text.trim().isNotEmpty &&
-        _emailController.text.trim().isNotEmpty &&
-        _passwordController.text.length >= 6 &&
+        _validateEmail(_emailController.text.trim()) == null &&
+        _validatePassword(_passwordController.text) == null &&
         _passwordController.text == _confirmPasswordController.text &&
         _acceptedTerms;
-    // Note: We DON'T check _emailExists here because:
-    // 1. It starts as null
-    // 2. Email check is async and happens when button is pressed
-    // 3. This prevents button from being enabled prematurely
   }
 
-  Future<void> _proceedToStep2() async {
-    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    debugPrint('[_proceedToStep2] METHOD CALLED');
-    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    
-    // Basic validation
-    if (!_isStep1Valid) {
-      debugPrint('[_proceedToStep2] ❌ Step1 basic validation failed');
-      debugPrint('  - Name: ${_nameController.text.trim().isNotEmpty}');
-      debugPrint('  - Email: ${_emailController.text.trim().isNotEmpty}');
-      debugPrint('  - Password length: ${_passwordController.text.length >= 6}');
-      debugPrint('  - Passwords match: ${_passwordController.text == _confirmPasswordController.text}');
-      debugPrint('  - Terms accepted: $_acceptedTerms');
+  /// Step 1'den Step 2'ye geç (sadece UI validation)
+  void _proceedToStep2() {
+    debugPrint('[RegisterPage] ═══════════════════════════════════');
+    debugPrint('[RegisterPage] _proceedToStep2() ÇAĞRILDI');
+    debugPrint('[RegisterPage] ═══════════════════════════════════');
+
+    // 1️⃣ ADIM: İsim validation
+    final nameError = _validateDisplayName(_nameController.text);
+    if (nameError != null) {
+      debugPrint('[RegisterPage] ❌ İsim hatası: $nameError');
+      _showError(nameError);
       return;
     }
-    
-    final email = _emailController.text.trim();
-    debugPrint('[_proceedToStep2] 📧 Email to check: $email');
-    
-    // Validate email format
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
-      debugPrint('[_proceedToStep2] ❌ Invalid email format');
+
+    // 2️⃣ ADIM: Email validation
+    final emailError = _validateEmail(_emailController.text);
+    if (emailError != null) {
+      debugPrint('[RegisterPage] ❌ Email hatası: $emailError');
+      _showError(emailError);
       return;
     }
-    
-    // Start email check
-    debugPrint('[_proceedToStep2] 🔍 Starting email existence check...');
-    setState(() => _isCheckingEmail = true);
-    
-    try {
-      final emailExists = await _authService.checkEmailExists(email);
-      
-      debugPrint('[_proceedToStep2] ✅ Email check completed');
-      debugPrint('[_proceedToStep2] Result: emailExists = $emailExists');
-      
-      if (!mounted) {
-        debugPrint('[_proceedToStep2] ⚠️ Widget not mounted, aborting');
-        return;
-      }
-      
-      setState(() {
-        _emailExists = emailExists;
-        _isCheckingEmail = false;
-      });
-      
-      // CRITICAL: If email exists, STOP and show dialog
-      if (emailExists) {
-        debugPrint('[_proceedToStep2] 🚫 EMAIL EXISTS! Showing dialog and STOPPING');
-        
-        if (!mounted) return;
-        
-        // Show dialog - MUST await this
-        final shouldNavigateToLogin = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false, // Prevent accidental dismissal
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('Zaten Mevcut Bir Hesabınız Var'),
-            content: const Text(
-              'Bu e-posta adresiyle daha önce hesap oluşturulmuş. '
-              'Mevcut hesabınızla giriş yapmak ister misiniz?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('İptal'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Giriş Yap'),
-              ),
-            ],
-          ),
-        );
-        
-        // Navigate to login if user confirmed
-        if (shouldNavigateToLogin == true && mounted) {
-          debugPrint('[_proceedToStep2] 🔄 Navigating to LoginPage with prefilled email');
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => LoginPage(prefilledEmail: email),
-            ),
-          );
-        }
-        
-        // CRITICAL: RETURN here - DO NOT proceed to step 2
-        debugPrint('[_proceedToStep2] 🛑 STOPPING - not proceeding to step 2');
-        return;
-      }
-      
-      // Email doesn't exist, safe to proceed
-      debugPrint('[_proceedToStep2] ✅ Email available, proceeding to step 2');
-      _pageController.animateToPage(
-        1,
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeInOut,
-      );
-      setState(() => _currentStep = 1);
-      debugPrint('[_proceedToStep2] ✅ Successfully moved to step 2');
-      
-    } catch (e) {
-      debugPrint('[_proceedToStep2] ❌ Error during email check: $e');
-      if (!mounted) return;
-      setState(() => _isCheckingEmail = false);
-      
-      // Show error to user
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('E-posta kontrolü başarısız: ${e.toString()}'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+
+    // 3️⃣ ADIM: Password validation
+    final passwordError = _validatePassword(_passwordController.text);
+    if (passwordError != null) {
+      debugPrint('[RegisterPage] ❌ Şifre hatası: $passwordError');
+      _showError(passwordError);
+      return;
     }
-    
-    debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    // 4️⃣ ADIM: Password match validation
+    if (_passwordController.text != _confirmPasswordController.text) {
+      debugPrint('[RegisterPage] ❌ Şifreler uyuşmuyor');
+      _showError(AppConstants.validationPasswordMismatch);
+      return;
+    }
+
+    // 5️⃣ ADIM: Terms acceptance
+    if (!_acceptedTerms) {
+      debugPrint('[RegisterPage] ❌ Koşullar kabul edilmedi');
+      _showError('Kullanım koşullarını kabul etmeniz gerekmektedir');
+      return;
+    }
+
+    debugPrint('[RegisterPage] ✅ Tüm UI validation geçti');
+    debugPrint('[RegisterPage] 📧 Email: ${_emailController.text.trim().toLowerCase()}');
+
+    // UI validation geçti → Step 2'ye geç
+    _pageController.animateToPage(
+      1,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeInOut,
+    );
+    setState(() => _currentStep = 1);
   }
 
-  // ── Step 2: Username Validation ──────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  // STEP 2: USERNAME CHECK (Firestore)
+  // ══════════════════════════════════════════════════════════════════════
 
   Future<void> _checkUsernameAvailability(String username) async {
     if (username.length < AppConstants.usernameMinLength) {
@@ -348,6 +270,13 @@ class _RegisterPageState extends State<RegisterPage> {
         _isUsernameAvailable = available;
         _usernameError = available ? null : AppConstants.errorUsernameTaken;
       });
+    } catch (e) {
+      debugPrint('[RegisterPage] ❌ Username check HATASI: $e');
+      if (!mounted) return;
+      setState(() {
+        _isUsernameAvailable = false;
+        _usernameError = 'Kullanıcı adı kontrol edilemedi';
+      });
     } finally {
       if (mounted) setState(() => _isCheckingUsername = false);
     }
@@ -366,7 +295,7 @@ class _RegisterPageState extends State<RegisterPage> {
       _isUsernameAvailable == true &&
       !_isCheckingUsername;
 
-  Future<void> _proceedToStep3() async {
+  void _proceedToStep3() {
     if (!_isStep2Valid) return;
     _pageController.animateToPage(
       2,
@@ -376,7 +305,9 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => _currentStep = 2);
   }
 
-  // ── Step 3: Profile Photo Upload ─────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  // STEP 3: PROFILE PHOTO UPLOAD
+  // ══════════════════════════════════════════════════════════════════════
 
   Future<void> _pickAndUploadPhoto() async {
     try {
@@ -409,16 +340,11 @@ class _RegisterPageState extends State<RegisterPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isUploadingPhoto = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Fotoğraf yüklenemedi: ${e.toString()}'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      _showError('Fotoğraf yüklenemedi: ${e.toString()}');
     }
   }
 
-  Future<void> _proceedToStep4() async {
+  void _proceedToStep4() {
     _pageController.animateToPage(
       3,
       duration: const Duration(milliseconds: 350),
@@ -427,66 +353,33 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => _currentStep = 3);
   }
 
-  // ── Step 4: Complete Registration ────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  // STEP 4: COMPLETE REGISTRATION
+  // ══════════════════════════════════════════════════════════════════════
 
   Future<void> _completeRegistration() async {
+    debugPrint('[RegisterPage] ═══════════════════════════════════');
+    debugPrint('[RegisterPage] _completeRegistration() ÇAĞRILDI');
+    debugPrint('[RegisterPage] ═══════════════════════════════════');
+
+    // 1️⃣ ADIM: Interests validation
     if (_selectedInterests.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(AppConstants.validationInterestsRequired),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      debugPrint('[RegisterPage] ❌ İlgi alanı seçilmedi');
+      _showError(AppConstants.validationInterestsRequired);
       return;
     }
 
-    // Check if email already exists BEFORE attempting registration
     setState(() => _isLoading = true);
-    
-    try {
-      final email = _emailController.text.trim();
-      final emailAlreadyExists = await _authService.checkEmailExists(email);
-      
-      if (!mounted) return;
-      
-      if (emailAlreadyExists) {
-        setState(() => _isLoading = false);
-        
-        // Show dialog to navigate to login
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('E-posta Zaten Kayıtlı'),
-            content: const Text(
-              'Bu e-posta adresiyle daha önce hesap oluşturulmuş. '
-              'Mevcut hesabınızla giriş yapmak ister misiniz?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('İptal'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context); // Close dialog
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => LoginPage(prefilledEmail: email),
-                    ),
-                  );
-                },
-                child: const Text('Giriş Yap'),
-              ),
-            ],
-          ),
-        );
-        return;
-      }
 
-      // Step 1: Register in Firebase Auth
+    try {
+      // 2️⃣ ADIM: FIREBASE AUTH REGISTRATION
+      // ÖNEMLİ: Pre-check YOK!
+      // Firebase createUserWithEmailAndPassword email uniqueness'i kontrol eder
+      debugPrint('[RegisterPage] 📝 Firebase Auth kaydı başlıyor...');
+      debugPrint('[RegisterPage] 📧 Email: ${_emailController.text.trim().toLowerCase()}');
+
       final credential = await _authService.registerWithEmailAndPassword(
-        email: _emailController.text.trim(),
+        email: _emailController.text.trim().toLowerCase(),
         password: _passwordController.text,
         displayName: _nameController.text.trim(),
       );
@@ -496,15 +389,17 @@ class _RegisterPageState extends State<RegisterPage> {
       }
 
       _userId = credential.user!.uid;
+      debugPrint('[RegisterPage] ✅ Firebase Auth başarılı: $_userId');
 
-      // Step 2: Create initial Firestore document with onboardingCompleted=false
+      // 3️⃣ ADIM: Firestore document oluştur
       await _userService.createUserDocument(
         uid: _userId!,
         email: _emailController.text.trim(),
         name: _nameController.text.trim(),
       );
+      debugPrint('[RegisterPage] ✅ Firestore document oluşturuldu');
 
-      // Step 3: Complete onboarding (sets onboardingCompleted=true)
+      // 4️⃣ ADIM: Onboarding tamamla
       await _userService.completeOnboarding(
         uid: _userId!,
         username: _usernameController.text.trim().toLowerCase(),
@@ -514,23 +409,111 @@ class _RegisterPageState extends State<RegisterPage> {
         photoUrl: _uploadedPhotoUrl,
         interests: _selectedInterests.toList(),
       );
+      debugPrint('[RegisterPage] ✅ Onboarding tamamlandı');
 
-      debugPrint('[RegisterPage] Registration complete, onboardingCompleted=true');
-      // AppRouter will detect onboardingCompleted=true and navigate to HomePage
-    } catch (e) {
+      debugPrint('[RegisterPage] ═══════════════════════════════════');
+      debugPrint('[RegisterPage] KAYIT BAŞARILI');
+      debugPrint('[RegisterPage] ═══════════════════════════════════');
+      // AppRouter onboardingCompleted=true'yu algılayacak ve HomePage'e gidecek
+
+    } on Exception catch (e) {
+      debugPrint('[RegisterPage] ❌ HATA YAKALANDI: $e');
+      
       if (!mounted) return;
       setState(() => _isLoading = false);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Kayıt tamamlanamadı: ${e.toString()}'),
-          backgroundColor: AppColors.error,
+
+      // Exception prefixini kaldir
+      String cleanMessage = e.toString();
+      if (cleanMessage.startsWith('Exception: ')) {
+        cleanMessage = cleanMessage.substring(10);
+      }
+      debugPrint('[RegisterPage] ❌ Hata mesajı: $cleanMessage');
+
+      // 📧 EMAIL-ALREADY-IN-USE: Login'e yönlendir
+      // Hem Firebase kodunu hem Türkçe mesajı kontrol et
+      final errorLower = cleanMessage.toLowerCase();
+      if (errorLower.contains('email-already-in-use') ||
+          errorLower.contains('bu e-posta') ||
+          errorLower.contains('zaten')) {
+        debugPrint('[RegisterPage] 📧 Email zaten kayıtlı → Login dialog gösteriliyor');
+        await _showEmailAlreadyExistsDialog();
+        return;
+      }
+
+      // 🔗 OTHER ERRORS: Hata göster
+      _showError(cleanMessage);
+    }
+  }
+
+  /// Email zaten kayıtlıysa gösterilecek dialog
+  Future<void> _showEmailAlreadyExistsDialog() async {
+    debugPrint('[RegisterPage] 📱 Dialog gösteriliyor...');
+    
+    final email = _emailController.text.trim();
+    debugPrint('[RegisterPage] 📧 Email: $email');
+    
+    if (!mounted) {
+      debugPrint('[RegisterPage] ❌ Widget mounted değil, dialog gösterilemiyor');
+      return;
+    }
+    
+    debugPrint('[RegisterPage] 🔵 AlertDialog gösteriliyor...');
+    
+    final shouldNavigateToLogin = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Zaten Mevcut Bir Hesabınız Var'),
+        content: Text(
+          'Bu e-posta adresi ($email) ile daha önce hesap oluşturulmuş.\n\n'
+          'Mevcut hesabınızla giriş yapmak ister misiniz?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              debugPrint('[RegisterPage] ❌ İptal basıldı');
+              Navigator.pop(dialogContext, false);
+            },
+            child: const Text('İptal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              debugPrint('[RegisterPage] ✅ Giriş Yap basıldı');
+              Navigator.pop(dialogContext, true);
+            },
+            child: const Text('Giriş Yap'),
+          ),
+        ],
+      ),
+    );
+
+    debugPrint('[RegisterPage] 📊 Dialog sonucu: $shouldNavigateToLogin');
+
+    if (shouldNavigateToLogin == true && mounted) {
+      debugPrint('[RegisterPage] 🔄 Login sayfasına yönlendiriliyor...');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LoginPage(prefilledEmail: email),
         ),
       );
     }
   }
 
-  // ── Navigation ───────────────────────────────────────────────────────────
+  /// Hata mesajı göster
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.error,
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // NAVIGATION
+  // ══════════════════════════════════════════════════════════════════════
 
   void _previousStep() {
     if (_currentStep > 0) {
@@ -543,7 +526,9 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  // ── Build ────────────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════
+  // BUILD
+  // ══════════════════════════════════════════════════════════════════════
 
   @override
   Widget build(BuildContext context) {
@@ -552,13 +537,8 @@ class _RegisterPageState extends State<RegisterPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // Progress Bar
             _buildProgressBar(),
-
-            // Header
             _buildHeader(),
-
-            // PageView
             Expanded(
               child: PageView(
                 controller: _pageController,
@@ -628,6 +608,8 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  // ── STEP 1: AUTH ──────────────────────────────────────────────────────
+
   Widget _buildStep1Auth() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -664,15 +646,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 hintText: 'Ahmet Yılmaz',
                 prefixIcon: Icon(Icons.person_outline),
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return AppConstants.validationNameRequired;
-                }
-                if (value.trim().length < 2) {
-                  return AppConstants.validationNameTooShort;
-                }
-                return null;
-              },
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 16),
@@ -682,42 +655,13 @@ class _RegisterPageState extends State<RegisterPage> {
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'E-posta',
                 hintText: 'ornek@email.com',
-                prefixIcon: const Icon(Icons.email_outlined),
-                suffixIcon: _buildEmailSuffix(),
+                prefixIcon: Icon(Icons.email_outlined),
               ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return AppConstants.validationEmailRequired;
-                }
-                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                    .hasMatch(value)) {
-                  return AppConstants.validationEmailInvalid;
-                }
-                return null;
-              },
-              onChanged: (value) {
-                Future.delayed(const Duration(milliseconds: 500), () {
-                  if (mounted &&
-                      _emailController.text == value &&
-                      value.trim().isNotEmpty) {
-                    _checkEmailExists(value.trim());
-                  }
-                });
-                setState(() {
-                  _emailExists = null;
-                });
-              },
+              onChanged: (_) => setState(() {}),
             ),
-
-            // Email exists warning
-            if (_emailExists == true) ...[
-              const SizedBox(height: 12),
-              _buildEmailExistsWarning(),
-            ],
-
             const SizedBox(height: 16),
 
             // Password
@@ -739,15 +683,6 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                 ),
               ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return AppConstants.validationPasswordRequired;
-                }
-                if (value.length < 6) {
-                  return AppConstants.validationPasswordTooShort;
-                }
-                return null;
-              },
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 16),
@@ -762,8 +697,8 @@ class _RegisterPageState extends State<RegisterPage> {
                 hintText: '••••••••',
                 prefixIcon: const Icon(Icons.lock_outlined),
                 suffixIcon: IconButton(
-                  onPressed: () => setState(() =>
-                      _obscureConfirmPassword = !_obscureConfirmPassword),
+                  onPressed: () => setState(
+                      () => _obscureConfirmPassword = !_obscureConfirmPassword),
                   icon: Icon(
                     _obscureConfirmPassword
                         ? Icons.visibility_outlined
@@ -771,15 +706,6 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                 ),
               ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Şifre tekrarı gerekli';
-                }
-                if (value != _passwordController.text) {
-                  return AppConstants.validationPasswordMismatch;
-                }
-                return null;
-              },
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 20),
@@ -867,97 +793,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _buildEmailSuffix() {
-    if (_isCheckingEmail) {
-      return const SizedBox(
-        height: 20,
-        width: 20,
-        child: Padding(
-          padding: EdgeInsets.all(12),
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
-    }
-    if (_emailExists == true) {
-      return const Icon(Icons.warning_amber_rounded, color: AppColors.warning);
-    }
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildEmailExistsWarning() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.warning.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppColors.warning.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.account_circle_outlined,
-                color: AppColors.warning,
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Bu e-posta zaten kayıtlı',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Bu e-posta adresiyle daha önce hesap oluşturulmuş. Giriş yapmak ister misiniz?',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary.withValues(alpha: 0.8),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                // Navigate to login with pre-filled email
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => LoginPage(prefilledEmail: _emailController.text.trim()),
-                    ),
-                  );
-              },
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              icon: const Icon(Icons.login, size: 18),
-              label: const Text(
-                'Giriş Yap',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // ── STEP 2: USERNAME ──────────────────────────────────────────────────
 
   Widget _buildStep2Username() {
     return Padding(
@@ -1063,6 +899,8 @@ class _RegisterPageState extends State<RegisterPage> {
     return const SizedBox.shrink();
   }
 
+  // ── STEP 3: PROFILE ──────────────────────────────────────────────────
+
   Widget _buildStep3Profile() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -1088,7 +926,6 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
           const SizedBox(height: 32),
 
-          // Profile Photo
           Center(
             child: GestureDetector(
               onTap: _isUploadingPhoto ? null : _pickAndUploadPhoto,
@@ -1157,7 +994,6 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
           const SizedBox(height: 24),
 
-          // Bio
           TextFormField(
             controller: _bioController,
             maxLines: 3,
@@ -1194,6 +1030,8 @@ class _RegisterPageState extends State<RegisterPage> {
       ),
     );
   }
+
+  // ── STEP 4: INTERESTS ─────────────────────────────────────────────────
 
   Widget _buildStep4Interests() {
     return Padding(
